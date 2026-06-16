@@ -36,7 +36,7 @@ class ApiService {
   static const String baseUrl = "http://192.168.0.3:8080"; 
   static final Map<String, List<Map<String, String>>> _mockTimeDB = {};
 
-  // 1. 매장 기본 설정 데이터 전송 (POST)
+  // 매장 기본 설정 데이터 전송
   static Future<void> saveStoreSettings(Map<String, dynamic> storeData) async {
     final url = Uri.parse("$baseUrl/api/store/settings");
     try {
@@ -48,14 +48,14 @@ class ApiService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         print("🔔 [시스템] 매장 운영 정책 서버 전송 완료");
       } else {
-        print("❌ [서버 에러] 매장 설정 실패: ${response.statusCode}");
+        print("❌ [서버 에러] 상태코드: ${response.statusCode}");
       }
     } catch (e) {
       print("🔔 [시스템] 서버 연결 실패 (로컬 디버깅 모드): $storeData");
     }
   }
 
-  // 2. 직원 개인별 선호도 데이터 전송 (POST)
+  // 직원 개인별 선호도 데이터 전송
   static Future<void> saveEmployeeSettings(String name, Map<String, dynamic> empData) async {
     final url = Uri.parse("$baseUrl/api/employee/settings");
     try {
@@ -78,7 +78,7 @@ class ApiService {
     }
   }
 
-  // 3. 특정 직원 가용 시간 조회 (GET)
+  // 특정 직원 가용 시간 조회
   static Future<List<Map<String, String>>> getUserTimes(String name) async {
     final url = Uri.parse("$baseUrl/api/employee/availability/$name");
     try {
@@ -93,7 +93,7 @@ class ApiService {
     return List<Map<String, String>>.from(_mockTimeDB[name] ?? []);
   }
 
-  // 4. 모든 직원 가용 시간 현황 조회 (GET)
+  // 모든 직원 가용 시간 현황 조회
   static Future<Map<String, List<Map<String, String>>>> getAllAvailabilities() async {
     final url = Uri.parse("$baseUrl/api/employee/availability/all");
     try {
@@ -112,7 +112,7 @@ class ApiService {
     return _mockTimeDB;
   }
 
-  // 5. 등록된 알바생 현황 목록 조회 (GET)
+  // 등록된 알바생 현황 목록 조회
   static Future<List<Employee>> fetchEmployees() async {
     final url = Uri.parse("$baseUrl/api/employees");
     try {
@@ -133,7 +133,7 @@ class ApiService {
     ];
   }
 
-  // 6. 시간대별 필요 인원 기준 조회 (GET)
+  // 시간대별 필요 인원 기준 조회
   static Future<List<ShiftRequirement>> fetchShifts() async {
     final url = Uri.parse("$baseUrl/api/shifts");
     try {
@@ -152,16 +152,16 @@ class ApiService {
     ];
   }
 
-  // 7. AI 스케줄 자동 생성 트리거 API 호출 (POST)
+  // AI 스케줄 자동 생성 트리거 API 호출
   static Future<bool> requestAutoGenerate() async {
-    final url = Uri.parse("$baseUrl/api/schedule/generate"); 
+    final url = Uri.parse("$baseUrl/api/schedules/automate"); 
     try {
       print("🚀 [FE] 백엔드 서버($baseUrl)로 AI 스케줄 생성 요청을 보냅니다...");
       
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"status": "start_request"}),
+        body: jsonEncode({}), 
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
