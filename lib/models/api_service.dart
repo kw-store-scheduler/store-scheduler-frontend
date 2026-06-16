@@ -33,10 +33,9 @@ class ShiftRequirement {
 }
 
 class ApiService {
-  static const String baseUrl = "http://192.168.0.3:8080"; 
+  static const String baseUrl = "http://172.100.4.88"; 
   static final Map<String, List<Map<String, String>>> _mockTimeDB = {};
 
-  // 매장 기본 설정 데이터 전송
   static Future<void> saveStoreSettings(Map<String, dynamic> storeData) async {
     final url = Uri.parse("$baseUrl/api/store/settings");
     try {
@@ -46,16 +45,15 @@ class ApiService {
         body: jsonEncode(storeData),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print("🔔 [시스템] 매장 운영 정책 서버 전송 완료");
+        print("[System] Store settings sent to server successfully.");
       } else {
-        print("❌ [서버 에러] 상태코드: ${response.statusCode}");
+        print("[Server Error] Status Code: ${response.statusCode}");
       }
     } catch (e) {
-      print("🔔 [시스템] 서버 연결 실패 (로컬 디버깅 모드): $storeData");
+      print("[System] Connection failed. Local debugging mode active.");
     }
   }
 
-  // 직원 개인별 선호도 데이터 전송
   static Future<void> saveEmployeeSettings(String name, Map<String, dynamic> empData) async {
     final url = Uri.parse("$baseUrl/api/employee/settings");
     try {
@@ -65,10 +63,10 @@ class ApiService {
         body: jsonEncode({"name": name, ...empData}),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print("🔔 [시스템] $name 님의 근무 성향 서버 등록 완료");
+        print("[System] Employee settings for $name sent to server successfully.");
       }
     } catch (e) {
-      print("🔔 [시스템] 서버 연결 실패 (로컬 가용성 DB 등록): $name");
+      print("[System] Connection failed. Saved to local mock database: $name");
       _mockTimeDB[name] = [
         {"day": "출근 가능일", "time": empData['available_days'].join(', ')},
         {"day": "특별 휴무", "time": "${empData['off_requests'].length}일 신청됨"},
@@ -78,7 +76,6 @@ class ApiService {
     }
   }
 
-  // 특정 직원 가용 시간 조회
   static Future<List<Map<String, String>>> getUserTimes(String name) async {
     final url = Uri.parse("$baseUrl/api/employee/availability/$name");
     try {
@@ -88,12 +85,11 @@ class ApiService {
         return data.map((e) => Map<String, String>.from(e)).toList();
       }
     } catch (e) {
-      print("⚠️ 서버 조회 실패로 기존 로컬 데이터를 반환합니다.");
+      print("[Warning] Server fetch failed. Returning local mock data.");
     }
     return List<Map<String, String>>.from(_mockTimeDB[name] ?? []);
   }
 
-  // 모든 직원 가용 시간 현황 조회
   static Future<Map<String, List<Map<String, String>>>> getAllAvailabilities() async {
     final url = Uri.parse("$baseUrl/api/employee/availability/all");
     try {
@@ -107,12 +103,11 @@ class ApiService {
         return result;
       }
     } catch (e) {
-      print("⚠️ 서버 조회 실패로 로컬 가용 시간 현황을 보여줍니다.");
+      print("[Warning] Server fetch failed. Showing local data status.");
     }
     return _mockTimeDB;
   }
 
-  // 등록된 알바생 현황 목록 조회
   static Future<List<Employee>> fetchEmployees() async {
     final url = Uri.parse("$baseUrl/api/employees");
     try {
@@ -122,7 +117,7 @@ class ApiService {
         return data.map((json) => Employee.fromJson(json)).toList();
       }
     } catch (e) {
-      print("⚠️ 서버 연결 실패로 기본 알바생 목록을 출력합니다.");
+      print("[Warning] Connection failed. Outputting default employee list.");
     }
     return [
       Employee(id: 1, name: "참빛", hourlyWage: 9860),
@@ -133,7 +128,6 @@ class ApiService {
     ];
   }
 
-  // 시간대별 필요 인원 기준 조회
   static Future<List<ShiftRequirement>> fetchShifts() async {
     final url = Uri.parse("$baseUrl/api/shifts");
     try {
@@ -143,7 +137,7 @@ class ApiService {
         return data.map((json) => ShiftRequirement.fromJson(json)).toList();
       }
     } catch (e) {
-      print("⚠️ 서버 연결 실패로 기본 필요 인원 세팅을 출력합니다.");
+      print("[Warning] Connection failed. Outputting default shift requirements.");
     }
     return [
       ShiftRequirement(name: "오픈", time: "09:00 - 13:00", requiredStaff: 2),
@@ -152,11 +146,10 @@ class ApiService {
     ];
   }
 
-  // AI 스케줄 자동 생성 트리거 API 호출
   static Future<bool> requestAutoGenerate() async {
     final url = Uri.parse("$baseUrl/api/schedules/automate"); 
     try {
-      print("🚀 [FE] 백엔드 서버($baseUrl)로 AI 스케줄 생성 요청을 보냅니다...");
+      print("[FE] Sending automated schedule generation request to: $baseUrl");
       
       final response = await http.post(
         url,
@@ -165,14 +158,14 @@ class ApiService {
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print("🟩 [BE 통신 성공] 백엔드 응답 완료!");
+        print("[BE Communication Success] Server responded successfully.");
         return true; 
       } else {
-        print("❌ [BE 에러] 상태코드: ${response.statusCode}");
+        print("[BE Error] Status Code: ${response.statusCode}");
         return false;
       }
     } catch (e) {
-      print("❌ [네트워크 에러] 연결 실패: $e");
+      print("[Network Error] Connection failed: $e");
       return true; 
     }
   }
