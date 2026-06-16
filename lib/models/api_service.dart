@@ -33,7 +33,7 @@ class ShiftRequirement {
 }
 
 class ApiService {
-  static const String baseUrl = "http://172.100.4.88"; 
+  static const String baseUrl = "https://bless-sensually-viewpoint.ngrok-free.dev"; 
   static final Map<String, List<Map<String, String>>> _mockTimeDB = {};
 
   static Future<void> saveStoreSettings(Map<String, dynamic> storeData) async {
