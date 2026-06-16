@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class Employee {
   final int id;
@@ -15,6 +17,8 @@ class ShiftRequirement {
 }
 
 class ApiService {
+  static const String baseUrl = "http://192.168.0.3:8080"; 
+
   static final Map<String, List<Map<String, String>>> _mockTimeDB = {};
 
   // 매장 기본 설정 데이터 전송
@@ -65,8 +69,29 @@ class ApiService {
     ];
   }
 
+  // AI 스케줄 자동 생성 트리거 API 호출
   static Future<bool> requestAutoGenerate() async {
-    await Future.delayed(const Duration(seconds: 2)); 
-    return true; 
+    final url = Uri.parse("$baseUrl/api/schedule/generate"); 
+    
+    try {
+      print("🚀 [FE] 백엔드 서버($baseUrl)로 AI 스케줄 생성 요청을 보냅니다...");
+      
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"status": "start_request"}),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print("🟩 [BE 통신 성공] 백엔드 응답 완료!");
+        return true; 
+      } else {
+        print("❌ [BE 에러] 상태코드: ${response.statusCode}");
+        return false;
+      }
+    } catch (e) {
+      print("❌ [네트워크 에러] 연결 실패: $e");
+      return true; 
+    }
   }
 }
