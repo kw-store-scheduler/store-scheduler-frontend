@@ -96,7 +96,7 @@ class LoginPage extends StatelessWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: () {
-                    // A06 역할 선택 화면 또는 홈으로 이동
+                    // TODO: A06 역할 선택 화면 또는 홈으로 이동
                   },
                   child: const Text(
                     "휴대폰 번호로 계속하기",
