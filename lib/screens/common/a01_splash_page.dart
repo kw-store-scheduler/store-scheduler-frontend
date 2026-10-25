@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/api_service.dart';
 import '../../core/home_router.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../models/user.dart';
+import '../../theme/thyme_theme.dart';
+import '../../widgets/thyme_leaf.dart';
+import '../../widgets/thyme_logo.dart';
 import 'a02_service_intro_page.dart'; // 다음 화면
 
 /// A01 스플래시. 저장된 로그인이 있으면 /me 로 확인해서 첫 화면으로, 없으면 A02 서비스 소개로
@@ -57,37 +61,52 @@ class _SplashPageState extends State<SplashPage> {
     return Scaffold(
       backgroundColor: ThymeColor.primary,
       body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "thyme.",
-                style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: ThymeColor.surface, letterSpacing: -1.5),
+        child: Column(
+          children: [
+            const Spacer(flex: 3),
+            const ThymeLogo(size: 64),
+            const SizedBox(height: 16),
+            Text("Time, grown into a hub.",
+                style: GoogleFonts.instrumentSerif(fontSize: 22, fontStyle: FontStyle.italic, color: ThymeColor.onPrimarySub)),
+            const SizedBox(height: 48),
+            if (_error == null) ...[
+              // 잎 로딩 (가이드 4-5 잎 모티프)
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ThymeLeaf(size: 14, color: ThymeColor.indigoSurface),
+                  SizedBox(width: 14),
+                  ThymeLeaf(size: 14, color: ThymeColor.indigoSurface, flip: true),
+                  SizedBox(width: 14),
+                  ThymeLeaf(size: 14, color: ThymeColor.successText),
+                ],
               ),
-              if (_error != null) ...[
-                const SizedBox(height: 32),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Text(
-                    "$_error\n서버를 깨우는 중이면 30초~1분 걸릴 수 있어요.",
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 14, color: ThymeColor.onPrimarySub, height: 1.5),
-                  ),
+              const SizedBox(height: 20),
+              const Text("매장의 시간을 불러오는 중…", style: TextStyle(fontSize: 14, color: ThymeColor.onPrimarySub)),
+            ] else ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  "$_error\n서버를 깨우는 중이면 30초~1분 걸릴 수 있어요.",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 14, color: ThymeColor.onPrimarySub, height: 1.5),
                 ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: ThymeColor.accent, foregroundColor: ThymeColor.onAccent),
-                  onPressed: _start,
-                  child: const Text("다시 시도"),
-                ),
-                TextButton(
-                  onPressed: _toLogin,
-                  child: const Text("다른 계정으로 로그인", style: TextStyle(color: ThymeColor.onPrimarySub)),
-                ),
-              ],
+              ),
+              const SizedBox(height: 20),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: ThymeColor.accent, foregroundColor: ThymeColor.onAccent),
+                onPressed: _start,
+                child: const Text("다시 시도"),
+              ),
+              TextButton(
+                onPressed: _toLogin,
+                child: const Text("다른 계정으로 로그인", style: TextStyle(color: ThymeColor.onPrimarySub)),
+              ),
             ],
-          ),
+            const Spacer(flex: 4),
+            Text("v0.1 · 2026", style: ThymeTheme.mono(context, size: 12, color: ThymeColor.indigoSurface)),
+            const SizedBox(height: 24),
+          ],
         ),
       ),
     );

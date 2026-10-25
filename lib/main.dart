@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/api_service.dart';
 import 'core/push_service.dart';
 import 'core/session.dart';
@@ -39,6 +40,10 @@ class ThymeApp extends StatelessWidget {
       title: 'Thyme',
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
+      // 달력·시간 선택·복사 메뉴 등 기본 위젯을 한국어로
+      locale: const Locale('ko', 'KR'),
+      supportedLocales: const [Locale('ko', 'KR')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: ThymeTheme.light(),
       // 화면들이 아직 라이트 상수(ThymeColor)를 쓰고 있어서 다크모드는 토큰 전환 뒤에 켠다
       // darkTheme: ThymeTheme.dark(),

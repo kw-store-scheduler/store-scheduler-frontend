@@ -5,6 +5,7 @@ import '../../core/push_service.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../models/user.dart';
+import '../../widgets/thyme_logo.dart';
 import 'a05_terms_agreement_page.dart';
 
 /// A03 로그인 · 회원가입 (아이디·비밀번호)
@@ -13,10 +14,13 @@ import 'a05_terms_agreement_page.dart';
 /// - 로그인 → GET /api/users/me 로 첫 화면을 고른다 ([homeFor])
 /// - 회원가입 → 근로자로 가입하고 로그인 → A05 약관·알림 → A06 역할 선택 (역할은 A06에서 /me/role 로 확정)
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, this.notice});
+  const LoginPage({super.key, this.notice, this.startInSignup = false});
 
   /// 로그인 화면으로 돌아온 이유 (예: 토큰 만료)
   final String? notice;
+
+  /// A02 '시작하기'로 오면 회원가입, '이미 계정이 있어요'로 오면 로그인
+  final bool startInSignup;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -26,7 +30,7 @@ class _LoginPageState extends State<LoginPage> {
   final _username = TextEditingController();
   final _password = TextEditingController();
   final _passwordConfirm = TextEditingController();
-  bool _signup = false;
+  late bool _signup = widget.startInSignup;
   bool _loading = false;
   String? _error;
 
@@ -99,10 +103,7 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 64),
 
                     // 앱 로고
-                    const Text(
-                      "thyme.",
-                      style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: ThymeColor.text, letterSpacing: -1.0),
-                    ),
+                    const ThymeLogo(size: 36, color: ThymeColor.text),
                     const SizedBox(height: 24),
 
                     // 메인 카피

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,6 +36,10 @@ Future<void> pumpScreen(WidgetTester tester, Widget home) async {
   final theme = ThymeTheme.light();
   await tester.pumpWidget(MaterialApp(
     theme: theme.copyWith(textTheme: theme.textTheme.apply(fontFamily: _family)),
+    // 실제 앱(main.dart)과 같이 한국어 (달력 '확인'·'취소' 등)
+    locale: const Locale('ko', 'KR'),
+    supportedLocales: const [Locale('ko', 'KR')],
+    localizationsDelegates: GlobalMaterialLocalizations.delegates,
     home: home,
   ));
 }
