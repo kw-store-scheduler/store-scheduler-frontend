@@ -30,6 +30,9 @@ class _StoreCodePageState extends State<StoreCodePage> {
   void initState() {
     super.initState();
     _code.addListener(_onChanged);
+    // 사장님이 보낸 초대 링크로 들어왔으면 코드를 미리 채운다
+    final invited = JoinApi.invitedCode;
+    if (invited != null) _code.text = invited;
   }
 
   @override
@@ -75,7 +78,7 @@ class _StoreCodePageState extends State<StoreCodePage> {
             Text("사장님께 매장 코드를 받아 주세요", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ThymeColor.text)),
             SizedBox(height: 12),
             Text(
-              "사장님은 Thyme 앱의 매장 설정 화면이나 매장 등록을 마친 화면에서 8자리 매장 코드를 볼 수 있고, '코드 복사'로 바로 보낼 수 있어요.",
+              "사장님은 Thyme 앱의 매장 설정 화면이나 매장 등록을 마친 화면에서 8자리 매장 코드를 볼 수 있고, 초대 링크나 QR로 바로 보낼 수 있어요.",
               style: TextStyle(fontSize: 14, color: ThymeColor.textSub, height: 1.5),
             ),
           ],

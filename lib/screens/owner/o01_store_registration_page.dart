@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../core/api_service.dart';
-import '../../core/session.dart';
 import '../../core/store_api.dart';
 import '../../core/theme.dart';
 import '../../models/store.dart';
+import '../../widgets/thyme_logo.dart';
 import '../../widgets/thyme_step_app_bar.dart';
 import 'o02_schedule_cycle_page.dart';
 
+/// O01 매장 정보 (매장 등록 1/6). 이름·업종 → POST /api/stores (업종 기본 교대·역량을 서버가 같이 만든다) → O02
 class StoreRegistrationPage extends StatefulWidget {
   const StoreRegistrationPage({super.key});
 
@@ -15,10 +16,10 @@ class StoreRegistrationPage extends StatefulWidget {
 }
 
 class _StoreRegistrationPageState extends State<StoreRegistrationPage> {
-  final TextEditingController _nameController = TextEditingController();
-  String _selectedIndustry = "CAFE"; // 기본 선택값
+  final _name = TextEditingController();
+  String _selected = "CAFE";
 
-  // 시연용 업종 목록 (백엔드 Industry enum과 같은 값). 로그인했으면 GET /industries 로 바꾼다
+  // 서버 Industry enum 과 같은 목록. 화면이 뜨자마자 고를 수 있게 두고, GET /industries 응답으로 바꾼다
   List<IndustryInfo> _industries = const [
     IndustryInfo(code: "CAFE", label: "카페", skills: ["음료 제조", "응대 속도", "오픈·마감", "외국어", "정산"], shifts: []),
     IndustryInfo(code: "CLOTHING", label: "의류", skills: ["고객 응대", "진열·VMD", "재고 관리", "오픈·마감", "정산"], shifts: []),
@@ -28,19 +29,22 @@ class _StoreRegistrationPageState extends State<StoreRegistrationPage> {
     IndustryInfo(code: "ETC", label: "기타", skills: ["고객 응대", "오픈·마감", "정산"], shifts: []),
   ];
   bool _saving = false;
-  int? _createdStoreId; // 뒤로 왔다가 다시 '다음'을 눌러도 매장을 두 번 만들지 않게
 
-  IndustryInfo get _industry => _industries.firstWhere((i) => i.code == _selectedIndustry, orElse: () => _industries.first);
+  // 뒤로 왔다가 다시 '다음'을 눌러도 매장을 두 번 만들지 않게. 서버에 이름·업종 변경 API가 없어 만든 뒤엔 잠근다
+  int? _createdStoreId;
+
+  IndustryInfo get _industry => _industries.firstWhere((i) => i.code == _selected, orElse: () => _industries.first);
 
   @override
   void initState() {
     super.initState();
-    if (Session.instance.isLoggedIn) _loadIndustries();
+    _name.addListener(() => setState(() {}));
+    _loadIndustries();
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _name.dispose();
     super.dispose();
   }
 
@@ -49,21 +53,15 @@ class _StoreRegistrationPageState extends State<StoreRegistrationPage> {
       final list = await StoreApi().industries();
       if (mounted && list.isNotEmpty) setState(() => _industries = list);
     } on ApiException {
-      // 목록을 못 받아도 시연용 목록(서버와 같은 값)으로 진행할 수 있다
+      // 위 목록이 서버와 같아 그대로 진행할 수 있다
     }
   }
 
-  /// 로그인했으면 매장을 만들고(업종 기본 교대·역량도 서버가 같이 만든다) O02로
   Future<void> _next() async {
-    final name = _nameController.text.trim();
-    if (Session.instance.isLoggedIn && _createdStoreId == null) {
-      if (name.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("매장 이름을 입력해 주세요.")));
-        return;
-      }
+    if (_createdStoreId == null) {
       setState(() => _saving = true);
       try {
-        _createdStoreId = (await StoreApi().create(name: name, industry: _selectedIndustry)).id;
+        _createdStoreId = (await StoreApi().create(name: _name.text.trim(), industry: _selected)).id;
       } on ApiException catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
         return;
@@ -77,138 +75,93 @@ class _StoreRegistrationPageState extends State<StoreRegistrationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final locked = _createdStoreId != null;
+    final canNext = locked || _name.text.trim().isNotEmpty;
     return Scaffold(
       backgroundColor: ThymeColor.bg,
-      appBar: ThymeStepAppBar(step: 1, total: 6, group: '매장 등록', owner: true),
+      appBar: const ThymeStepAppBar(
+        step: 1,
+        total: 6,
+        group: '매장 등록',
+        owner: true,
+        leading: Padding(padding: EdgeInsets.only(left: 20), child: Align(alignment: Alignment.centerLeft, child: ThymeLogo(size: 26, color: ThymeColor.text))),
+      ),
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "어떤 매장인가요?",
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: ThymeColor.text),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    "업종을 고르면 그 업종에 맞는 역량 항목과 기본 교대 시간을 미리 채워 드려요.",
-                    style: TextStyle(fontSize: 14, color: ThymeColor.textSub, height: 1.5),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // 매장 이름 입력
-                  const Text("매장 이름", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                  const SizedBox(height: 12),
+                  const Text("어떤 매장인가요?", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+                  const SizedBox(height: 10),
+                  const Text("업종을 고르면 그 업종에 맞는 역량 항목과 기본 교대 시간을 미리 채워 드려요.",
+                      style: TextStyle(fontSize: 15, color: ThymeColor.textSub, height: 1.5)),
+                  const SizedBox(height: 28),
+                  _label("매장 이름"),
                   TextField(
-                    controller: _nameController,
-                    decoration: InputDecoration(
-                      hintText: "구시대 커피 광운대점",
-                      hintStyle: TextStyle(color: ThymeColor.disabled),
-                      filled: true,
-                      fillColor: ThymeColor.surface,
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: ThymeColor.text, width: 1.5),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: ThymeColor.text, width: 2.0),
-                      ),
-                    ),
+                    controller: _name,
+                    enabled: !locked,
+                    textInputAction: TextInputAction.done,
+                    decoration: const InputDecoration(hintText: "예: 구시대 커피 광운대점"),
                   ),
-                  const SizedBox(height: 32),
-
-                  // 업종 선택 그리드
-                  const Text("업종", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                  const SizedBox(height: 12),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 2.5,
-                    ),
-                    itemCount: _industries.length,
-                    itemBuilder: (context, index) {
-                      final industry = _industries[index];
-                      bool isSelected = _selectedIndustry == industry.code;
-                      return GestureDetector(
-                        onTap: () {
-                          // 매장을 만든 뒤에는 업종을 바꿀 수 없다 (서버에 업종 변경 API 없음)
-                          if (_createdStoreId != null) return;
-                          setState(() {
-                            _selectedIndustry = industry.code;
-                          });
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isSelected ? ThymeColor.text : ThymeColor.surface,
-                            border: Border.all(color: isSelected ? ThymeColor.text : ThymeColor.border),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            industry.label,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              color: isSelected ? ThymeColor.surface : ThymeColor.text,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 32),
-
-                  // 선택된 업종에 맞춘 큐레이션 안내 박스
+                  const SizedBox(height: 24),
+                  _label("업종"),
+                  LayoutBuilder(builder: (context, c) {
+                    final w = (c.maxWidth - 20) / 3;
+                    return Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [for (final i in _industries) SizedBox(width: w, child: _industryChip(i, locked))],
+                    );
+                  }),
+                  const SizedBox(height: 24),
                   if (_industry.skills.isNotEmpty)
                     Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: ThymeColor.surfaceSub,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(color: ThymeColor.surface, borderRadius: BorderRadius.circular(20)),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("${_industry.label}에 맞춰 준비되는 것", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                          const SizedBox(height: 16),
+                          Text("${_industry.label}에 맞춰 준비되는 것",
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.textSub)),
+                          const SizedBox(height: 12),
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
-                            children: _industry.skills.map((skill) {
-                              return Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: ThymeColor.surface,
-                                  border: Border.all(color: ThymeColor.border),
-                                  borderRadius: BorderRadius.circular(20),
+                            children: [
+                              for (final skill in _industry.skills)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(color: ThymeColor.surfaceSub, borderRadius: BorderRadius.circular(99)),
+                                  child: Text(skill, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.text)),
                                 ),
-                                child: Text(skill, style: const TextStyle(fontSize: 13, color: ThymeColor.text)),
-                              );
-                            }).toList(),
+                            ],
                           ),
                         ],
                       ),
                     ),
+                  if (locked) ...[
+                    const SizedBox(height: 12),
+                    const Text("매장을 이미 만들었어요. 이름·업종은 지금은 바꿀 수 없어요.",
+                        style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+                  ],
                 ],
               ),
             ),
           ),
-
-          // 하단 다음 버튼
           SafeArea(
+            top: false,
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: SizedBox(
                 width: double.infinity,
-                child: FilledButton(onPressed: _saving ? null : _next, child: Text(_saving ? "매장 만드는 중…" : "다음")),
+                child: FilledButton(
+                  onPressed: !canNext || _saving ? null : _next,
+                  child: Text(_saving ? "매장 만드는 중…" : (canNext ? "다음" : "매장 이름을 입력해 주세요")),
+                ),
               ),
             ),
           ),
@@ -216,4 +169,31 @@ class _StoreRegistrationPageState extends State<StoreRegistrationPage> {
       ),
     );
   }
+
+  Widget _industryChip(IndustryInfo i, bool locked) {
+    final on = i.code == _selected;
+    return Material(
+      color: on ? ThymeColor.primary : ThymeColor.surface,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: locked ? null : () => setState(() => _selected = i.code),
+        child: Container(
+          height: 52,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: on ? ThymeColor.primary : ThymeColor.border),
+          ),
+          child: Text(i.label,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: on ? ThymeColor.onPrimary : ThymeColor.text)),
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.textSub)),
+      );
 }

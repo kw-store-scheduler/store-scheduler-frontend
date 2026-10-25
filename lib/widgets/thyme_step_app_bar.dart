@@ -17,6 +17,7 @@ class ThymeStepAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.owner = false,
     this.closeIcon = false,
     this.actions,
+    this.leading,
   });
 
   final int step;
@@ -35,6 +36,9 @@ class ThymeStepAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// 단계 표시 오른쪽에 붙는 버튼 (예: 건너뛰기)
   final List<Widget>? actions;
 
+  /// 뒤로가기 대신 둘 것 (예: 매장 등록 첫 화면의 로고)
+  final Widget? leading;
+
   static const double _barHeight = 4;
 
   @override
@@ -49,7 +53,8 @@ class ThymeStepAppBar extends StatelessWidget implements PreferredSizeWidget {
       elevation: 0,
       // 아래에 화면이 없으면(첫 화면) 뒤로가기를 숨긴다
       automaticallyImplyLeading: false,
-      leading: ThymeBackButton(icon: closeIcon ? Icons.close : Icons.arrow_back_ios, color: t.text, size: 20),
+      leading: leading ?? ThymeBackButton(icon: closeIcon ? Icons.close : Icons.arrow_back_ios, color: t.text, size: 20),
+      leadingWidth: leading == null ? null : 140,
       centerTitle: true,
       title: title == null
           ? null
