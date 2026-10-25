@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
+import 'h12_absence_report_page.dart';
 
 class VacantShiftBoardPage extends StatefulWidget {
   const VacantShiftBoardPage({super.key});
@@ -41,17 +42,17 @@ class _VacantShiftBoardPageState extends State<VacantShiftBoardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: ThymeColor.bg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: ThymeColor.bg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.deepNight, size: 20),
+          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.text, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           "빈 근무",
-          style: TextStyle(color: ThymeColor.deepNight, fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(color: ThymeColor.text, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         actions: [
@@ -61,13 +62,12 @@ class _VacantShiftBoardPageState extends State<VacantShiftBoardPage> {
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                  side: BorderSide(color: Colors.grey.shade300),
+                  side: BorderSide(color: ThymeColor.border),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                onPressed: () {
-                  // H12 오늘 못 나가요 (내 근무 내놓기) 화면으로 이동
-                },
-                child: const Text("내 근무 내놓기", style: TextStyle(color: ThymeColor.deepNight, fontSize: 12, fontWeight: FontWeight.bold)),
+                // 내 근무 내놓기 = H12 오늘 못 나가요
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AbsenceReportPage())),
+                child: const Text("내 근무 내놓기", style: TextStyle(color: ThymeColor.text, fontSize: 12, fontWeight: FontWeight.bold)),
               ),
             ),
           ),
@@ -82,14 +82,14 @@ class _VacantShiftBoardPageState extends State<VacantShiftBoardPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("이번 주 4일 · 22시간 근무 중", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.deepNight)),
+                const Text("이번 주 4일 · 22시간 근무 중", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.text)),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: ThymeColor.surfaceSub,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text("한도까지 1일", style: TextStyle(fontSize: 12, color: ThymeColor.textGrey)),
+                  child: const Text("한도까지 1일", style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
                 ),
               ],
             ),
@@ -147,7 +147,7 @@ class _VacantShiftBoardPageState extends State<VacantShiftBoardPage> {
             // 하단 설명
             Text(
               "지원하면 사장님이 고르고, 승인되면 근무표와 수당이 바로 바뀌어요. 규칙에 걸리는 근무는 지원할 수 없어요.",
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade400, height: 1.5),
+              style: TextStyle(fontSize: 12, color: ThymeColor.disabled, height: 1.5),
             ),
           ],
         ),
@@ -171,9 +171,9 @@ class _VacantShiftBoardPageState extends State<VacantShiftBoardPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isUnavailable ? Colors.grey.shade50 : Colors.white,
+        color: isUnavailable ? ThymeColor.surfaceSub : ThymeColor.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: ThymeColor.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,13 +183,13 @@ class _VacantShiftBoardPageState extends State<VacantShiftBoardPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isUnavailable ? Colors.grey.shade200 : (isUrgent ? ThymeColor.rose.withValues(alpha: 0.1) : Colors.grey.shade100),
+                  color: isUnavailable ? ThymeColor.border : (isUrgent ? ThymeColor.danger.withValues(alpha: 0.1) : ThymeColor.surfaceSub),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
                     if (isUrgent && !isUnavailable) ...[
-                      Container(width: 4, height: 4, decoration: const BoxDecoration(color: ThymeColor.rose, shape: BoxShape.circle)),
+                      Container(width: 4, height: 4, decoration: const BoxDecoration(color: ThymeColor.danger, shape: BoxShape.circle)),
                       const SizedBox(width: 4),
                     ],
                     Text(
@@ -197,7 +197,7 @@ class _VacantShiftBoardPageState extends State<VacantShiftBoardPage> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: isUnavailable ? Colors.grey.shade500 : (isUrgent ? ThymeColor.rose : ThymeColor.textGrey),
+                        color: isUnavailable ? ThymeColor.textSub : (isUrgent ? ThymeColor.danger : ThymeColor.textSub),
                       ),
                     ),
                   ],
@@ -206,7 +206,7 @@ class _VacantShiftBoardPageState extends State<VacantShiftBoardPage> {
               const SizedBox(width: 8),
               Text(
                 date,
-                style: TextStyle(fontSize: 13, color: isUnavailable ? Colors.grey.shade400 : ThymeColor.textGrey),
+                style: TextStyle(fontSize: 13, color: isUnavailable ? ThymeColor.disabled : ThymeColor.textSub),
               ),
             ],
           ),
@@ -216,7 +216,7 @@ class _VacantShiftBoardPageState extends State<VacantShiftBoardPage> {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: isUnavailable ? Colors.grey.shade400 : ThymeColor.deepNight,
+              color: isUnavailable ? ThymeColor.disabled : ThymeColor.text,
               letterSpacing: -0.5,
             ),
           ),
@@ -225,7 +225,7 @@ class _VacantShiftBoardPageState extends State<VacantShiftBoardPage> {
             desc,
             style: TextStyle(
               fontSize: 12,
-              color: isUnavailable ? ThymeColor.rose.withValues(alpha: 0.7) : ThymeColor.textGrey,
+              color: isUnavailable ? ThymeColor.danger.withValues(alpha: 0.7) : ThymeColor.textSub,
             ),
           ),
           const Padding(
@@ -240,35 +240,35 @@ class _VacantShiftBoardPageState extends State<VacantShiftBoardPage> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: isUnavailable ? Colors.grey.shade400 : ThymeColor.deepNight,
+                  color: isUnavailable ? ThymeColor.disabled : ThymeColor.text,
                 ),
               ),
               if (status == 1) // 지원 가능
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: ThymeColor.deepNight,
+                    backgroundColor: ThymeColor.primary,
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     elevation: 0,
                   ),
                   onPressed: onTap,
-                  child: const Text("지원하기", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                  child: const Text("지원하기", style: TextStyle(color: ThymeColor.onPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
                 )
               else if (status == 2) // 지원 완료
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    side: BorderSide(color: Colors.grey.shade300),
+                    side: BorderSide(color: ThymeColor.border),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: onTap, // 다시 누르면 취소되게 임시 연결
-                  icon: const Icon(Icons.check, size: 16, color: ThymeColor.textGrey),
-                  label: const Text("지원함", style: TextStyle(color: ThymeColor.textGrey, fontWeight: FontWeight.bold, fontSize: 13)),
+                  icon: const Icon(Icons.check, size: 16, color: ThymeColor.textSub),
+                  label: const Text("지원함", style: TextStyle(color: ThymeColor.textSub, fontWeight: FontWeight.bold, fontSize: 13)),
                 )
               else // 불가
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Text("불가", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 13)),
+                  child: Text("불가", style: TextStyle(color: ThymeColor.textSub, fontWeight: FontWeight.bold, fontSize: 13)),
                 ),
             ],
           ),

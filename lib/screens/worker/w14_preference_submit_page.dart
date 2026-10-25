@@ -1,22 +1,71 @@
 import 'package:flutter/material.dart';
+import '../../core/api_service.dart';
+import '../../core/preference_api.dart';
+import '../../core/session.dart';
 import '../../core/theme.dart';
+import '../../models/preference.dart';
+import '../../theme/thyme_theme.dart';
+import '../../widgets/thyme_step_app_bar.dart';
+import 'h01_part_timer_home_page.dart';
+import 'h02_employee_home_page.dart';
 
 class PreferenceSubmitPage extends StatefulWidget {
-  const PreferenceSubmitPage({super.key});
+  const PreferenceSubmitPage({super.key, required this.draft});
+
+  final PreferenceDraft draft;
 
   @override
   State<PreferenceSubmitPage> createState() => _PreferenceSubmitPageState();
 }
 
 class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
-  // 사용자가 우선순위를 바꿀 수 있는 리스트 데이터
-  final List<Map<String, String>> _preferences = [
-    {"title": "희망 휴무", "desc": "11/15(일) 시험 공부"},
-    {"title": "선호 교대", "desc": "평일 오픈 선호 · 미들 가능"},
-    {"title": "주말 횟수", "desc": "한 달 2회까지"},
-    {"title": "이번 달 근무량", "desc": "64~86시간 (계약 주 15~20h)"},
-    {"title": "근무 리듬", "desc": "마감 다음 날 오픈 X · 최대 연속 3일"},
-  ];
+  // 사용자가 우선순위를 바꿀 수 있는 리스트 (초안의 순서 그대로 시작)
+  late final List<PreferencePriority> _preferences = List.of(widget.draft.priorities);
+  bool _submitting = false;
+
+  /// 앞 단계에서 고른 값으로 항목 설명을 만든다
+  String _describe(PreferencePriority p) {
+    final d = widget.draft;
+    final preferred = d.slots.values.where((l) => l == PreferenceLevel.preferred).length;
+    return switch (p) {
+      PreferencePriority.dayOff => "휴무 요청에서 고른 날",
+      PreferencePriority.shift => d.fullTime
+          ? "선호 ${d.shiftAttitudes.values.where((a) => a == ShiftAttitude.prefer).length}개"
+              " · 피하고 싶음 ${d.shiftAttitudes.values.where((a) => a == ShiftAttitude.avoid).length}개"
+          : "가능 ${d.slots.length - preferred}칸 · 선호 $preferred칸",
+      PreferencePriority.weekend => d.maxWeekendShifts == null ? "제한 없음" : "한 달 ${d.maxWeekendShifts}회까지",
+      PreferencePriority.hours =>
+        d.minMonthlyHours == null ? "계약 범위대로" : "${d.minMonthlyHours}~${d.maxMonthlyHours}시간",
+      PreferencePriority.rhythm => [
+          if (d.noOpenAfterClose) "마감 다음 날 오픈 X",
+          if (d.maxConsecutiveDays != null) "최대 연속 ${d.maxConsecutiveDays}일",
+        ].join(" · "),
+    };
+  }
+
+  /// 로그인했으면 서버에 제출하고, 시연 중이면 바로 다음 화면으로
+  Future<void> _submit() async {
+    widget.draft.priorities = List.of(_preferences);
+    if (Session.instance.isLoggedIn) {
+      setState(() => _submitting = true);
+      try {
+        await PreferenceApi().submit(widget.draft);
+      } on ApiException catch (e) {
+        if (mounted) {
+          setState(() => _submitting = false);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        }
+        return;
+      }
+    }
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      // 플로우맵 갈림길 ②: 알바 W14 → H01 알바 홈, 직원 W14 → H02 직원 홈
+      MaterialPageRoute(builder: (_) => widget.draft.fullTime ? const EmployeeHomePage() : const PartTimerHomePage()),
+      (route) => false,
+    );
+  }
 
   // 드래그 앤 드롭으로 순서 변경될 때 실행되는 함수
   void _onReorder(int oldIndex, int newIndex) {
@@ -32,28 +81,11 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.deepNight, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "우선순위 · 마지막",
-          style: TextStyle(color: ThymeColor.textGrey, fontSize: 14),
-        ),
-        centerTitle: true,
-        actions: [
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.only(right: 24.0),
-              child: Text("7 / 7", style: TextStyle(color: ThymeColor.textGrey, fontSize: 14, fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: ThymeColor.bg,
+      // 알바 7단계의 마지막, 직원은 3단계의 마지막
+      appBar: widget.draft.fullTime
+          ? ThymeStepAppBar(step: 3, total: 3, group: '직원', title: '우선순위 · 마지막')
+          : ThymeStepAppBar(step: 7, total: 7, title: '우선순위 · 마지막'),
       body: Column(
         children: [
           Padding(
@@ -63,12 +95,12 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
               children: [
                 const Text(
                   "무엇을 가장 지키고 싶어요?",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: ThymeColor.deepNight),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: ThymeColor.text),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   "내 선호끼리 부딪히면 위에 있는 것부터 지켜요.\n화살표로 순서를 바꿔요.",
-                  style: TextStyle(fontSize: 14, color: ThymeColor.textGrey, height: 1.5),
+                  style: TextStyle(fontSize: 14, color: ThymeColor.textSub, height: 1.5),
                 ),
               ],
             ),
@@ -92,7 +124,7 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
                     color: Colors.transparent,
                     child: Container(
                       decoration: BoxDecoration(
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 5))],
+                        boxShadow: [BoxShadow(color: ThymeColor.text.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 5))],
                       ),
                       child: child,
                     ),
@@ -100,12 +132,12 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
                 },
                 itemBuilder: (context, index) {
                   return Container(
-                    key: ValueKey(_preferences[index]["title"]),
+                    key: ValueKey(_preferences[index]),
                     margin: const EdgeInsets.only(bottom: 12.0),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: Colors.grey.shade200),
+                      color: ThymeColor.surface,
+                      border: Border.all(color: ThymeColor.border),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
@@ -115,13 +147,13 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
                           width: 24,
                           height: 24,
                           decoration: const BoxDecoration(
-                            color: ThymeColor.deepNight,
+                            color: ThymeColor.text,
                             shape: BoxShape.circle,
                           ),
                           alignment: Alignment.center,
                           child: Text(
                             "${index + 1}",
-                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: ThymeColor.onPrimary, fontSize: 12, fontWeight: FontWeight.bold),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -132,13 +164,13 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _preferences[index]["title"]!,
-                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.deepNight),
+                                _preferences[index].label,
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                _preferences[index]["desc"]!,
-                                style: TextStyle(fontSize: 12, color: ThymeColor.textGrey),
+                                _describe(_preferences[index]),
+                                style: TextStyle(fontSize: 12, color: ThymeColor.textSub),
                               ),
                             ],
                           ),
@@ -147,8 +179,8 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
                         // 우측 상하 화살표 (드래그 핸들)
                         Column(
                           children: [
-                            Icon(Icons.keyboard_arrow_up, size: 20, color: Colors.grey.shade400),
-                            Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.grey.shade400),
+                            Icon(Icons.keyboard_arrow_up, size: 20, color: ThymeColor.disabled),
+                            Icon(Icons.keyboard_arrow_down, size: 20, color: ThymeColor.disabled),
                           ],
                         ),
                       ],
@@ -164,12 +196,12 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Row(
               children: [
-                Container(width: 4, height: 4, decoration: const BoxDecoration(color: ThymeColor.deepNight, shape: BoxShape.circle)),
+                Container(width: 4, height: 4, decoration: const BoxDecoration(color: ThymeColor.text, shape: BoxShape.circle)),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
                     "고정 일정과 필수 휴무는 순위와 상관없이 항상 지켜져요.",
-                    style: TextStyle(fontSize: 12, color: ThymeColor.deepNight, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 12, color: ThymeColor.text, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -182,18 +214,7 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
               padding: const EdgeInsets.all(24.0),
               child: SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ThymeColor.mint, // 시안의 마지막 제출 버튼은 민트색!
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
-                  onPressed: () {
-                    // 서버로 최종 희망 데이터 쏘고 W04 승인 대기 화면 등으로 이동
-                  },
-                  child: const Text("신청 제출", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.deepNight)),
-                ),
+                child: ThymeFinalButton(label: _submitting ? "제출하는 중…" : "신청 제출", onPressed: _submitting ? null : _submit),
               ),
             ),
           ),

@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
+import '../../widgets/thyme_step_app_bar.dart';
+import 'j03_join_profile_page.dart';
 
 class EmploymentTypePage extends StatefulWidget {
-  const EmploymentTypePage({super.key});
+  const EmploymentTypePage({super.key, this.storeCode, this.storeName});
+
+  /// J01에서 찾은 매장 (시연 중이면 null)
+  final String? storeCode;
+  final String? storeName;
 
   @override
   State<EmploymentTypePage> createState() => _EmploymentTypePageState();
@@ -15,23 +21,8 @@ class _EmploymentTypePageState extends State<EmploymentTypePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.deepNight, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.only(right: 24.0),
-              child: Text("가입 2 / 3", style: TextStyle(color: ThymeColor.textGrey, fontSize: 13, fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: ThymeColor.bg,
+      appBar: ThymeStepAppBar(step: 2, total: 3, group: '가입'),
       body: Column(
         children: [
           Expanded(
@@ -42,12 +33,12 @@ class _EmploymentTypePageState extends State<EmploymentTypePage> {
                 children: [
                   const Text(
                     "어떤 형태로 일하세요?",
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: ThymeColor.deepNight),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: ThymeColor.text),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     "형태에 따라 신청하는 내용과 홈 화면이 달라져요.",
-                    style: TextStyle(fontSize: 14, color: ThymeColor.textGrey, height: 1.5),
+                    style: TextStyle(fontSize: 14, color: ThymeColor.textSub, height: 1.5),
                   ),
                   const SizedBox(height: 32),
 
@@ -65,7 +56,7 @@ class _EmploymentTypePageState extends State<EmploymentTypePage> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
+                      color: ThymeColor.surfaceSub,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Column(
@@ -89,7 +80,7 @@ class _EmploymentTypePageState extends State<EmploymentTypePage> {
                   Center(
                     child: Text(
                       "사장님이 승인할 때 바로잡을 수 있어요.",
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                      style: TextStyle(fontSize: 12, color: ThymeColor.textSub),
                     ),
                   ),
                 ],
@@ -105,17 +96,26 @@ class _EmploymentTypePageState extends State<EmploymentTypePage> {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: ThymeColor.deepNight,
+                    backgroundColor: ThymeColor.primary,
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
                   ),
                   onPressed: () {
-                    // J03 프로필 입력 화면으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => JoinProfilePage(
+                          fullTime: _selectedType == 0,
+                          storeCode: widget.storeCode,
+                          storeName: widget.storeName,
+                        ),
+                      ),
+                    );
                   },
                   child: Text(
                     _selectedType == 0 ? "직원으로 계속" : "알바로 계속",
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.onPrimary),
                   ),
                 ),
               ),
@@ -134,8 +134,8 @@ class _EmploymentTypePageState extends State<EmploymentTypePage> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? ThymeColor.deepNight : Colors.white,
-          border: Border.all(color: isSelected ? ThymeColor.deepNight : Colors.grey.shade300),
+          color: isSelected ? ThymeColor.text : ThymeColor.surface,
+          border: Border.all(color: isSelected ? ThymeColor.text : ThymeColor.border),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -143,23 +143,23 @@ class _EmploymentTypePageState extends State<EmploymentTypePage> {
           children: [
             Text(
               title,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : ThymeColor.deepNight),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isSelected ? ThymeColor.onPrimary : ThymeColor.text),
             ),
             const SizedBox(height: 12),
             Text(
               desc,
-              style: TextStyle(fontSize: 12, color: isSelected ? Colors.white.withValues(alpha: 0.8) : ThymeColor.textGrey, height: 1.4),
+              style: TextStyle(fontSize: 12, color: isSelected ? ThymeColor.onPrimary.withValues(alpha: 0.8) : ThymeColor.textSub, height: 1.4),
             ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.white.withValues(alpha: 0.2) : Colors.grey.shade100,
+                color: isSelected ? ThymeColor.surface.withValues(alpha: 0.2) : ThymeColor.surfaceSub,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 badge,
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : ThymeColor.textGrey),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isSelected ? ThymeColor.onPrimary : ThymeColor.textSub),
               ),
             )
           ],
@@ -173,8 +173,8 @@ class _EmploymentTypePageState extends State<EmploymentTypePage> {
     return Row(
       children: [
         const SizedBox(width: 70), // 항목 이름 여백
-        Expanded(child: Text("직원", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _selectedType == 0 ? ThymeColor.deepNight : ThymeColor.textGrey))),
-        Expanded(child: Text("알바", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _selectedType == 1 ? ThymeColor.deepNight : ThymeColor.textGrey))),
+        Expanded(child: Text("직원", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _selectedType == 0 ? ThymeColor.text : ThymeColor.textSub))),
+        Expanded(child: Text("알바", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _selectedType == 1 ? ThymeColor.text : ThymeColor.textSub))),
       ],
     );
   }
@@ -188,18 +188,18 @@ class _EmploymentTypePageState extends State<EmploymentTypePage> {
         children: [
           SizedBox(
             width: 70,
-            child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ThymeColor.deepNight)),
+            child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ThymeColor.text)),
           ),
           Expanded(
             child: Text(
               staffText,
-              style: TextStyle(fontSize: 12, color: _selectedType == 0 ? ThymeColor.deepNight : ThymeColor.textGrey, height: 1.4),
+              style: TextStyle(fontSize: 12, color: _selectedType == 0 ? ThymeColor.text : ThymeColor.textSub, height: 1.4),
             ),
           ),
           Expanded(
             child: Text(
               partTimeText,
-              style: TextStyle(fontSize: 12, color: _selectedType == 1 ? ThymeColor.deepNight : ThymeColor.textGrey, height: 1.4),
+              style: TextStyle(fontSize: 12, color: _selectedType == 1 ? ThymeColor.text : ThymeColor.textSub, height: 1.4),
             ),
           ),
         ],

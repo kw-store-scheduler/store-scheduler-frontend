@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
-import 'core/theme.dart';
+import 'core/push_service.dart';
+import 'screens/common/a03_login_page.dart';
+import 'theme/thyme_theme.dart';
 
-void main() {
+Future<void> main() async {
+  // 플러터 엔진 초기화 보장
+  WidgetsFlutterBinding.ensureInitialized();
+  await PushService.init();
+
   runApp(const ThymeApp());
 }
 
@@ -11,17 +17,13 @@ class ThymeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'Thyme',
-      theme: thymeTheme,
-      home: const Scaffold(
-        body: Center(
-          child: Text(
-            'Thyme 앱 뼈대 세팅 완료',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
+      debugShowCheckedModeBanner: false,
+      theme: ThymeTheme.light(),
+      // 화면들이 아직 라이트 상수(ThymeColor)를 쓰고 있어서 다크모드는 토큰 전환 뒤에 켠다
+      // darkTheme: ThymeTheme.dark(),
+      // 앱의 첫 문을 여는 화면
+      home: const LoginPage(),
     );
   }
 }

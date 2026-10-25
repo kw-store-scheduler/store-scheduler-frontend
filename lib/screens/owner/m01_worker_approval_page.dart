@@ -7,17 +7,17 @@ class WorkerApprovalPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: ThymeColor.bg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: ThymeColor.bg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.deepNight, size: 20),
+          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.text, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           "승인 대기",
-          style: TextStyle(color: ThymeColor.deepNight, fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(color: ThymeColor.text, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -30,9 +30,9 @@ class WorkerApprovalPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: ThymeColor.neutralBase,
+                color: ThymeColor.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: ThymeColor.border),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -40,22 +40,22 @@ class WorkerApprovalPage extends StatelessWidget {
                   const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("초대 코드", style: TextStyle(fontSize: 13, color: ThymeColor.textGrey)),
+                      Text("초대 코드", style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
                       SizedBox(height: 8),
-                      Text("NLXAYE", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: ThymeColor.deepNight, letterSpacing: 2)),
+                      Text("NLXAYE", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: ThymeColor.text, letterSpacing: 2)),
                     ],
                   ),
                   TextButton.icon(
                     onPressed: () {
                       // 클립보드에 코드 복사 기능 연결할 자리
                     },
-                    icon: const Icon(Icons.copy, size: 16, color: ThymeColor.deepNight),
-                    label: const Text("링크 복사", style: TextStyle(color: ThymeColor.deepNight, fontWeight: FontWeight.bold)),
+                    icon: const Icon(Icons.copy, size: 16, color: ThymeColor.text),
+                    label: const Text("링크 복사", style: TextStyle(color: ThymeColor.text, fontWeight: FontWeight.bold)),
                     style: TextButton.styleFrom(
-                      backgroundColor: Colors.white,
+                      backgroundColor: ThymeColor.surface,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
-                        side: BorderSide(color: Colors.grey.shade300),
+                        side: BorderSide(color: ThymeColor.border),
                       ),
                     ),
                   )
@@ -67,15 +67,15 @@ class WorkerApprovalPage extends StatelessWidget {
             // 승인 대기 목록 헤더
             Row(
               children: [
-                const Text("승인 대기", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ThymeColor.deepNight)),
+                const Text("승인 대기", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ThymeColor.text)),
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: ThymeColor.mint,
+                    color: ThymeColor.accent,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text("2", style: TextStyle(color: ThymeColor.deepNight, fontWeight: FontWeight.bold, fontSize: 12)),
+                  child: const Text("2", style: TextStyle(color: ThymeColor.text, fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
               ],
             ),
@@ -104,9 +104,9 @@ class WorkerApprovalPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ThymeColor.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: ThymeColor.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,32 +117,32 @@ class WorkerApprovalPage extends StatelessWidget {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: ThymeColor.neutralBase,
+                    backgroundColor: ThymeColor.bg,
                     radius: 20,
                     child: Text(
                       name[0], // 이름 첫 글자
-                      style: const TextStyle(color: ThymeColor.deepNight, fontWeight: FontWeight.bold),
+                      style: const TextStyle(color: ThymeColor.text, fontWeight: FontWeight.bold),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.deepNight)),
+                      Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
                       const SizedBox(height: 4),
-                      Text(date, style: TextStyle(fontSize: 12, color: ThymeColor.textGrey)),
+                      Text(date, style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
                     ],
                   ),
                 ],
               ),
-              const Icon(Icons.chevron_right, color: Colors.grey),
+              const Icon(Icons.chevron_right, color: ThymeColor.textSub),
             ],
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Divider(height: 1),
           ),
-          Text(info, style: const TextStyle(fontSize: 13, color: ThymeColor.deepNight)),
+          Text(info, style: const TextStyle(fontSize: 13, color: ThymeColor.text)),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -150,29 +150,20 @@ class WorkerApprovalPage extends StatelessWidget {
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    side: BorderSide(color: Colors.grey.shade300),
+                    side: BorderSide(color: ThymeColor.border),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () {
                     // 거절 처리 로직 연결할 자리
                   },
-                  child: const Text("거절", style: TextStyle(color: ThymeColor.textGrey, fontWeight: FontWeight.bold)),
+                  child: const Text("거절", style: TextStyle(color: ThymeColor.textSub, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ThymeColor.deepNight,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () {
+                child: FilledButton(onPressed: () {
                     // 승인 처리 및 시급/직급 설정 바텀시트 띄울 자리
-                  },
-                  child: const Text("승인", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
+                  }, child: Text("승인")),
               ),
             ],
           ),

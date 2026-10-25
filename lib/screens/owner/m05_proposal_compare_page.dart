@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
+import '../../theme/thyme_theme.dart';
+import 'p04_share_complete_page.dart';
 
 class ProposalComparePage extends StatefulWidget {
   const ProposalComparePage({super.key});
@@ -41,12 +43,12 @@ class _ProposalComparePageState extends State<ProposalComparePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ThymeColor.neutralBase,
+      backgroundColor: ThymeColor.bg,
       appBar: AppBar(
-        backgroundColor: ThymeColor.deepNight,
+        backgroundColor: ThymeColor.primary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: ThymeColor.onPrimary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -57,7 +59,7 @@ class _ProposalComparePageState extends State<ProposalComparePage> {
             width: double.infinity,
             padding: const EdgeInsets.only(left: 24, right: 24, bottom: 32),
             decoration: const BoxDecoration(
-              color: ThymeColor.deepNight,
+              color: ThymeColor.text,
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(24),
                 bottomRight: Radius.circular(24),
@@ -68,19 +70,19 @@ class _ProposalComparePageState extends State<ProposalComparePage> {
               children: [
                 const Text(
                   "OWNER\n구시대 커피 광운대점 · 2.7초 만에 계산",
-                  style: TextStyle(color: Colors.white54, fontSize: 12, height: 1.4),
+                  style: TextStyle(color: ThymeColor.onPrimarySub, fontSize: 12, height: 1.4),
                 ),
                 const SizedBox(height: 16),
                 const Text(
                   "11월 근무표 3안이 준비됐어요",
-                  style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: ThymeColor.onPrimary, fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 24),
                 Row(
                   children: [
-                    _buildSummaryCard("노동법 위반", "0건", ThymeColor.mint),
+                    _buildSummaryCard("노동법 위반", "0건", ThymeColor.accent),
                     const SizedBox(width: 12),
-                    _buildSummaryCard("최소 인원 충족", "100%", ThymeColor.mint),
+                    _buildSummaryCard("최소 인원 충족", "100%", ThymeColor.accent),
                   ],
                 )
               ],
@@ -102,15 +104,15 @@ class _ProposalComparePageState extends State<ProposalComparePage> {
                     margin: const EdgeInsets.only(bottom: 16),
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: ThymeColor.surface,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isSelected ? ThymeColor.deepNight : Colors.transparent,
+                        color: isSelected ? ThymeColor.text : Colors.transparent,
                         width: 2,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03), // 최신 문법 적용
+                          color: ThymeColor.text.withValues(alpha: 0.03), // 최신 문법 적용
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         )
@@ -125,19 +127,19 @@ class _ProposalComparePageState extends State<ProposalComparePage> {
                               children: [
                                 Text(
                                   proposal["title"],
-                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.deepNight),
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text),
                                 ),
                                 if (proposal["badge"].toString().isNotEmpty) ...[
                                   const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: ThymeColor.neutralBase,
+                                      color: ThymeColor.selectedSoft,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
                                       proposal["badge"],
-                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: ThymeColor.textGrey),
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: ThymeColor.textSub),
                                     ),
                                   ),
                                 ]
@@ -145,7 +147,7 @@ class _ProposalComparePageState extends State<ProposalComparePage> {
                             ),
                             Text(
                               "₩${_currencyFormat.format(proposal["cost"])}",
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.deepNight),
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text),
                             ),
                           ],
                         ),
@@ -170,18 +172,18 @@ class _ProposalComparePageState extends State<ProposalComparePage> {
             margin: const EdgeInsets.symmetric(horizontal: 24),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: ThymeColor.yellow.withValues(alpha: 0.15), // 최신 문법 적용
+              color: ThymeColor.warn.withValues(alpha: 0.15), // 최신 문법 적용
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.circle, color: ThymeColor.yellow, size: 8),
+                const Icon(Icons.circle, color: ThymeColor.warn, size: 8),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     "확인 1건 · 11/25 마감 17~22시는 최소 인원만 채웠고 목표 인원은 1명 모자라요.",
-                    style: TextStyle(fontSize: 13, color: ThymeColor.deepNight.withValues(alpha: 0.8), height: 1.4), // 최신 문법 적용
+                    style: TextStyle(fontSize: 13, color: ThymeColor.text.withValues(alpha: 0.8), height: 1.4), // 최신 문법 적용
                   ),
                 ),
               ],
@@ -199,30 +201,21 @@ class _ProposalComparePageState extends State<ProposalComparePage> {
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.white,
-                        side: const BorderSide(color: Color(0xFFE2E4EA)),
+                        backgroundColor: ThymeColor.surface,
+                        side: const BorderSide(color: ThymeColor.border),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () {},
-                      child: const Text("배정 사유", style: TextStyle(color: ThymeColor.deepNight, fontWeight: FontWeight.bold)),
+                      child: const Text("배정 사유", style: TextStyle(color: ThymeColor.text, fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     flex: 2,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: ThymeColor.mint,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
-                      ),
-                      onPressed: () {},
-                      child: Text(
-                        "${_selectedIndex == 0 ? 'A' : _selectedIndex == 1 ? 'B' : 'C'}안으로 확정",
-                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ),
+                    child: ThymeFinalButton(label: "${_selectedIndex == 0 ? 'A' : _selectedIndex == 1 ? 'B' : 'C'}안으로 확정", onPressed: () {
+                      // POST /schedules/proposals/{id}/confirm 연결할 자리 → P04 확정·공유
+                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ShareCompletePage()));
+                    }),
                   ),
                 ],
               ),
@@ -239,13 +232,13 @@ class _ProposalComparePageState extends State<ProposalComparePage> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.1), // 최신 문법 적용
+          color: ThymeColor.surface.withValues(alpha: 0.1), // 최신 문법 적용
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            Text(title, style: const TextStyle(color: ThymeColor.onPrimarySub, fontSize: 12)),
             const SizedBox(height: 8),
             Text(value, style: TextStyle(color: valueColor, fontSize: 18, fontWeight: FontWeight.bold)),
           ],
@@ -260,15 +253,15 @@ class _ProposalComparePageState extends State<ProposalComparePage> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: ThymeColor.neutralBase,
+          color: ThymeColor.surfaceSub,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(fontSize: 11, color: ThymeColor.textGrey)),
+            Text(label, style: const TextStyle(fontSize: 11, color: ThymeColor.textSub)),
             const SizedBox(height: 6),
-            Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.deepNight)),
+            Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.text)),
           ],
         ),
       ),

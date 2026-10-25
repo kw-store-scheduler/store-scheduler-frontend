@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
+import '../../widgets/thyme_step_app_bar.dart';
+import '../../models/preference.dart';
+import 'w06_work_hours_page.dart';
 
 class RestDayPreferencePage extends StatefulWidget {
-  const RestDayPreferencePage({super.key});
+  const RestDayPreferencePage({super.key, required this.draft});
+
+  final PreferenceDraft draft;
 
   @override
   State<RestDayPreferencePage> createState() => _RestDayPreferencePageState();
@@ -16,30 +21,8 @@ class _RestDayPreferencePageState extends State<RestDayPreferencePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.deepNight, size: 20),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-        title: const Text(
-          "인재 · 휴무",
-          style: TextStyle(color: ThymeColor.textGrey, fontSize: 14),
-        ),
-        centerTitle: true,
-        actions: [
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.only(right: 24.0),
-              child: Text("4 / 7", style: TextStyle(color: ThymeColor.textGrey, fontSize: 14, fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: ThymeColor.bg,
+      appBar: ThymeStepAppBar(step: 4, total: 7, title: '언제 · 휴무'),
       body: Column(
         children: [
           Expanded(
@@ -50,12 +33,12 @@ class _RestDayPreferencePageState extends State<RestDayPreferencePage> {
                 children: [
                   const Text(
                     "쉬고 싶은 날이 있나요?",
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: ThymeColor.deepNight, height: 1.3),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: ThymeColor.text, height: 1.3),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     "필수는 반드시 지켜져요. 희망은 안 될 때 어떻게 할지 순서를 정해 두면 그대로 처리해요.",
-                    style: TextStyle(fontSize: 14, color: ThymeColor.textGrey, height: 1.5),
+                    style: TextStyle(fontSize: 14, color: ThymeColor.textSub, height: 1.5),
                   ),
                   const SizedBox(height: 32),
 
@@ -73,14 +56,14 @@ class _RestDayPreferencePageState extends State<RestDayPreferencePage> {
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: BorderSide(color: Colors.grey.shade300),
+                        side: BorderSide(color: ThymeColor.border),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () {
                         // 날짜 및 사유 입력 바텀시트 띄우기
                       },
-                      icon: const Icon(Icons.add, color: ThymeColor.deepNight, size: 18),
-                      label: const Text("휴무 추가", style: TextStyle(color: ThymeColor.deepNight, fontWeight: FontWeight.bold)),
+                      icon: const Icon(Icons.add, color: ThymeColor.text, size: 18),
+                      label: const Text("휴무 추가", style: TextStyle(color: ThymeColor.text, fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -88,12 +71,12 @@ class _RestDayPreferencePageState extends State<RestDayPreferencePage> {
                   // 하단 안내 문구
                   Row(
                     children: [
-                      Container(width: 4, height: 4, decoration: const BoxDecoration(color: ThymeColor.mint, shape: BoxShape.circle)),
+                      Container(width: 4, height: 4, decoration: const BoxDecoration(color: ThymeColor.accent, shape: BoxShape.circle)),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           "필수 휴무는 한 달에 최대 2일까지예요. 넘으면 희망 휴무로 바뀌어요.",
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                          style: TextStyle(fontSize: 12, color: ThymeColor.textSub),
                         ),
                       ),
                     ],
@@ -109,18 +92,13 @@ class _RestDayPreferencePageState extends State<RestDayPreferencePage> {
               padding: const EdgeInsets.all(24.0),
               child: SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ThymeColor.deepNight,
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
-                  onPressed: () {
-                    // W06 계약·근무량 혹은 다음 스텝으로 이동
-                  },
-                  child: const Text("다음", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                ),
+                child: FilledButton(onPressed: () {
+                    Navigator.push(
+                      context,
+                      // 다음은 W06 근무량 (가이드 순서: W03 → W06 → W05 → W14)
+                      MaterialPageRoute(builder: (_) => WorkHoursPage(draft: widget.draft)),
+                    );
+                  }, child: Text("다음")),
               ),
             ),
           ),
@@ -134,9 +112,9 @@ class _RestDayPreferencePageState extends State<RestDayPreferencePage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: ThymeColor.surfaceSub,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: ThymeColor.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,25 +124,25 @@ class _RestDayPreferencePageState extends State<RestDayPreferencePage> {
             children: [
               Row(
                 children: [
-                  const Text("토", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.deepNight)),
+                  const Text("토", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.infoText)),
                   const SizedBox(width: 8),
-                  const Text("11/07", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.deepNight)),
+                  const Text("11/07", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
                   const SizedBox(width: 12),
-                  Text("가족 행사 · 하루 종일", style: TextStyle(fontSize: 14, color: ThymeColor.textGrey)),
+                  Text("가족 행사 · 하루 종일", style: TextStyle(fontSize: 14, color: ThymeColor.textSub)),
                 ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: ThymeColor.deepNight,
+                  color: ThymeColor.text,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text("필수", style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text("필수", style: TextStyle(fontSize: 12, color: ThymeColor.onPrimary, fontWeight: FontWeight.bold)),
               )
             ],
           ),
           const SizedBox(height: 12),
-          const Text("필수는 반드시 지켜져요. 순위 없이 항상 지켜져요.", style: TextStyle(fontSize: 12, color: ThymeColor.textGrey)),
+          const Text("필수는 반드시 지켜져요. 순위 없이 항상 지켜져요.", style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
         ],
       ),
     );
@@ -175,11 +153,11 @@ class _RestDayPreferencePageState extends State<RestDayPreferencePage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ThymeColor.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ThymeColor.deepNight.withValues(alpha: 0.2)),
+        border: Border.all(color: ThymeColor.text.withValues(alpha: 0.2)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: ThymeColor.text.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -190,21 +168,21 @@ class _RestDayPreferencePageState extends State<RestDayPreferencePage> {
             children: [
               Row(
                 children: [
-                  const Text("일", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.rose)),
+                  const Text("일", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.dangerText)),
                   const SizedBox(width: 8),
-                  const Text("11/15", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.deepNight)),
+                  const Text("11/15", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
                   const SizedBox(width: 12),
-                  Text("시험 공부 · 하루 종일", style: TextStyle(fontSize: 14, color: ThymeColor.textGrey)),
+                  Text("시험 공부 · 하루 종일", style: TextStyle(fontSize: 14, color: ThymeColor.textSub)),
                 ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade300),
+                  color: ThymeColor.surface,
+                  border: Border.all(color: ThymeColor.border),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text("희망", style: TextStyle(fontSize: 12, color: ThymeColor.deepNight, fontWeight: FontWeight.bold)),
+                child: const Text("희망", style: TextStyle(fontSize: 12, color: ThymeColor.text, fontWeight: FontWeight.bold)),
               )
             ],
           ),
@@ -215,8 +193,8 @@ class _RestDayPreferencePageState extends State<RestDayPreferencePage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("이 날이 안 되면?", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.deepNight)),
-              Text("누른 순서대로 1-2-3", style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+              const Text("이 날이 안 되면?", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+              Text("누른 순서대로 1-2-3", style: TextStyle(fontSize: 12, color: ThymeColor.disabled)),
             ],
           ),
           const SizedBox(height: 16),
@@ -242,10 +220,10 @@ class _RestDayPreferencePageState extends State<RestDayPreferencePage> {
           // 선택된 순위 설명
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: ThymeColor.surfaceSub, borderRadius: BorderRadius.circular(8)),
             child: const Text(
               "안 되면 1순위 오후만 쉬기 → 2순위 다른 날과 바꾸기\n순서로 처리해요.",
-              style: TextStyle(fontSize: 12, color: ThymeColor.textGrey, height: 1.4),
+              style: TextStyle(fontSize: 12, color: ThymeColor.textSub, height: 1.4),
             ),
           )
         ],
@@ -270,8 +248,8 @@ class _RestDayPreferencePageState extends State<RestDayPreferencePage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.grey.shade50,
-          border: Border.all(color: isSelected ? ThymeColor.deepNight : Colors.grey.shade300),
+          color: isSelected ? ThymeColor.surface : ThymeColor.surfaceSub,
+          border: Border.all(color: isSelected ? ThymeColor.text : ThymeColor.border),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -281,11 +259,11 @@ class _RestDayPreferencePageState extends State<RestDayPreferencePage> {
               Container(
                 width: 16,
                 height: 16,
-                decoration: const BoxDecoration(color: ThymeColor.deepNight, shape: BoxShape.circle),
+                decoration: const BoxDecoration(color: ThymeColor.text, shape: BoxShape.circle),
                 alignment: Alignment.center,
                 child: Text(
                   id == _firstChoice ? "1" : "2",
-                  style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 10, color: ThymeColor.onPrimary, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(width: 6),
@@ -295,7 +273,7 @@ class _RestDayPreferencePageState extends State<RestDayPreferencePage> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? ThymeColor.deepNight : ThymeColor.textGrey,
+                color: isSelected ? ThymeColor.text : ThymeColor.textSub,
               ),
             ),
           ],
