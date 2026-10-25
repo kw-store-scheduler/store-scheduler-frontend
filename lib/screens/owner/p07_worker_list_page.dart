@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/home_router.dart';
 import '../../core/theme.dart';
 // 행님이 이미 깎아두신 화면 & 다음 화면 임포트!
 import 'm01_worker_approval_page.dart'; 
@@ -79,7 +80,7 @@ class WorkerListPage extends StatelessWidget {
         selectedFontSize: 11,
         unselectedFontSize: 11,
         onTap: (index) {
-          if (index == 0) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const OwnerHomePage()));
+          if (index == 0) resetTo(context, const OwnerHomePage());
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: "홈"),

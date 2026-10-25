@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/home_router.dart';
 import '../core/theme.dart';
 import '../screens/owner/p01_owner_home_page.dart';
 import '../screens/owner/p06_substitute_manage_page.dart';
@@ -35,8 +36,12 @@ class ThymeOwnerTabBar extends StatelessWidget {
         final tab = OwnerTab.values[i];
         final page = _pageFor(tab);
         if (tab == current || page == null) return;
-        // 탭 전환은 쌓지 않고 바꿔 끼운다
-        Navigator.pushReplacement(context, PageRouteBuilder(pageBuilder: (_, _, _) => page, transitionDuration: Duration.zero));
+        // 탭 전환은 쌓지 않고 바꿔 끼운다 (탭 화면은 스택 맨 아래 → 뒤로가기로 빈 화면이 되지 않게)
+        Navigator.pushAndRemoveUntil(
+          context,
+          PageRouteBuilder(pageBuilder: (_, _, _) => rootPage(page), transitionDuration: Duration.zero),
+          (route) => false,
+        );
       },
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: "홈"),

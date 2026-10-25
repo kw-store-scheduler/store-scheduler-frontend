@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/home_router.dart';
 import '../../core/api_service.dart';
 import '../../core/preference_api.dart';
 import '../../core/session.dart';
@@ -59,12 +60,8 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
       }
     }
     if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      // 플로우맵 갈림길 ②: 알바 W14 → H01 알바 홈, 직원 W14 → H02 직원 홈
-      MaterialPageRoute(builder: (_) => widget.draft.fullTime ? const EmployeeHomePage() : const PartTimerHomePage()),
-      (route) => false,
-    );
+    // 플로우맵 갈림길 ②: 알바 W14 → H01 알바 홈, 직원 W14 → H02 직원 홈
+    resetTo(context, widget.draft.fullTime ? const EmployeeHomePage() : const PartTimerHomePage());
   }
 
   // 드래그 앤 드롭으로 순서 변경될 때 실행되는 함수

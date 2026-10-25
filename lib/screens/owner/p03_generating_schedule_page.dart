@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/thyme_back_button.dart';
 import '../../core/theme.dart';
 import 'm05_proposal_compare_page.dart'; // 행님의 M05 화면으로 찐 연결!
 
@@ -12,10 +13,7 @@ class GeneratingSchedulePage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: ThymeColor.primary,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.onPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: ThymeBackButton(color: ThymeColor.onPrimary),
         title: const Text("OWNER · 11월 근무표", style: TextStyle(color: ThymeColor.onPrimarySub, fontSize: 13, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/thyme_back_button.dart';
 import '../../core/theme.dart';
 
 class WorkerProfileConfirmPage extends StatefulWidget {
@@ -22,10 +23,7 @@ class _WorkerProfileConfirmPageState extends State<WorkerProfileConfirmPage> {
       appBar: AppBar(
         backgroundColor: ThymeColor.bg,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.text),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: ThymeBackButton(),
         title: const Text("김유나 · 알바 · 9/1 입사", style: TextStyle(color: ThymeColor.textSub, fontSize: 14, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),

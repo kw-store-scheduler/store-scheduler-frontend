@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/home_router.dart';
 import 'package:flutter/services.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
@@ -106,11 +107,7 @@ class RegistrationCompletePage extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton(onPressed: () {
                     // 점주 대시보드로 싹 갈아엎으면서 이동! (주석 절대 없음!)
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const OwnerHomePage()),
-                      (route) => false,
-                    );
+                    resetTo(context, const OwnerHomePage());
                   }, child: Text("매장 홈으로")),
               ),
               const SizedBox(height: 16),

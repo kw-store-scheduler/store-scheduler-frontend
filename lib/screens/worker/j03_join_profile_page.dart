@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/home_router.dart';
 import '../../core/api_service.dart';
 import '../../core/join_api.dart';
 import '../../core/session.dart';
@@ -72,18 +73,12 @@ class _JoinProfilePageState extends State<JoinProfilePage> {
     }
     if (!mounted) return;
     final shown = nickname.isNotEmpty ? nickname : name;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ApprovalWaitingPage(
+    resetTo(context, ApprovalWaitingPage(
           fullTime: widget.fullTime,
           name: shown.isEmpty ? "김유나" : shown,
           storeName: storeName ?? "구시대 커피 광운대점",
           requestedAt: DateTime.now(),
-        ),
-      ),
-      (route) => false,
-    );
+        ));
   }
 
   void _show(String message) {

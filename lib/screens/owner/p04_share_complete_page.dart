@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../widgets/thyme_back_button.dart';
+import '../../core/home_router.dart';
 import '../../core/theme.dart';
 import 'p01_owner_home_page.dart'; // 매장 홈으로 완벽 귀환!
 
@@ -12,10 +14,7 @@ class ShareCompletePage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: ThymeColor.bg,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: ThymeColor.text),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: ThymeBackButton(icon: Icons.close),
       ),
       body: SafeArea(
         child: Padding(
@@ -111,11 +110,7 @@ class ShareCompletePage extends StatelessWidget {
                     flex: 2,
                     child: FilledButton(onPressed: () {
                         // 스케줄 생성 플로우 끝! 점주 홈으로 귀환!
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (context) => const OwnerHomePage()),
-                          (route) => false,
-                        );
+                        resetTo(context, const OwnerHomePage());
                       }, child: Text("매장 홈으로")),
                   ),
                 ],

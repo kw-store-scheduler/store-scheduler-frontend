@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/thyme_back_button.dart';
 import '../../core/theme.dart';
 // 행님이 이미 깎아두신 화면들 실전 임포트!
 import 'h07_vacant_shift_board_page.dart'; // 대타 요청 ➔ 빈 근무 게시판
@@ -14,10 +15,7 @@ class NotificationPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: ThymeColor.bg,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.text),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: ThymeBackButton(),
         title: const Text("알림", style: TextStyle(color: ThymeColor.text, fontSize: 16, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [

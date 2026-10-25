@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/home_router.dart';
 import '../../core/theme.dart';
 import 'a03_login_page.dart';
 
@@ -38,10 +39,7 @@ class ServiceIntroPage extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LoginPage()),
-                    );
+                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => rootPage(const LoginPage())));
                   }, child: Text("시작하기")),
               ),
               const SizedBox(height: 16),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/thyme_colors.dart';
 import '../theme/thyme_theme.dart';
+import 'thyme_back_button.dart';
 
 /// 온보딩(가입·희망 신청·매장 등록) 화면 공통 상단 바.
 ///
@@ -46,10 +47,9 @@ class ThymeStepAppBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: t.bg,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
-      leading: IconButton(
-        icon: Icon(closeIcon ? Icons.close : Icons.arrow_back_ios, color: t.text, size: 20),
-        onPressed: () => Navigator.maybePop(context),
-      ),
+      // 아래에 화면이 없으면(첫 화면) 뒤로가기를 숨긴다
+      automaticallyImplyLeading: false,
+      leading: ThymeBackButton(icon: closeIcon ? Icons.close : Icons.arrow_back_ios, color: t.text, size: 20),
       centerTitle: true,
       title: title == null
           ? null

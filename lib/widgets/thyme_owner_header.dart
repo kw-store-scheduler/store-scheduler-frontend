@@ -27,7 +27,7 @@ class ThymeOwnerHeader extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              if (showBack)
+              if (showBack && Navigator.canPop(context))
                 IconButton(
                   padding: EdgeInsets.zero,
                   alignment: Alignment.centerLeft,

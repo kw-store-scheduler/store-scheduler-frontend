@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../widgets/thyme_back_button.dart';
+import '../../core/home_router.dart';
 import '../../core/theme.dart';
 import '../../theme/thyme_theme.dart';
 import 'h01_part_timer_home_page.dart'; // 처리 후 홈으로 직행!
@@ -13,10 +15,7 @@ class CoverAcceptPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: ThymeColor.bg,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: ThymeColor.text),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: ThymeBackButton(icon: Icons.close),
         title: const Text("대타 요청", style: TextStyle(color: ThymeColor.text, fontSize: 16, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
@@ -115,7 +114,7 @@ class CoverAcceptPage extends StatelessWidget {
                         side: BorderSide(color: ThymeColor.border),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => Navigator.maybePop(context),
                       child: const Text("어려워요", style: TextStyle(color: ThymeColor.textSub, fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
@@ -124,11 +123,7 @@ class CoverAcceptPage extends StatelessWidget {
                     flex: 2,
                     child: ThymeFinalButton(label: "수락하기", onPressed: () {
                         // 수락 완료 후 홈으로 복귀
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (context) => const PartTimerHomePage()),
-                          (route) => false,
-                        );
+                        resetTo(context, const PartTimerHomePage());
                       }),
                   ),
                 ],

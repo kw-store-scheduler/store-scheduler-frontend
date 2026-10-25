@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/home_router.dart';
 import '../../core/api_service.dart';
 import '../../core/join_api.dart';
 import '../../core/session.dart';
@@ -58,11 +59,7 @@ class _ApprovalWaitingPageState extends State<ApprovalWaitingPage> {
   }
 
   void _startFirstPreference() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => widget.fullTime ? const EmployeeLeavePage() : const LoadLastMonthPage()),
-      (route) => false,
-    );
+    resetTo(context, widget.fullTime ? const EmployeeLeavePage() : const LoadLastMonthPage());
   }
 
   @override

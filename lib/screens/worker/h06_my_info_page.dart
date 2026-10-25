@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../../core/home_router.dart';
 import '../../core/theme.dart';
 // 행님이 이미 깎아두신 화면들 실전 임포트!
 import 'h01_part_timer_home_page.dart';            // 홈으로 이동
 import 'w10_preference_report_page.dart';      // 희망 반영 리포트
 import 'w11_fixed_schedule_page.dart';         // 고정 일정/역량
 import '../common/a06_role_selection_page.dart';// 점주 역할 추가
+import '../../core/session.dart';
 import '../common/a03_login_page.dart';        // 로그아웃
 
 class MyInfoPage extends StatelessWidget {
@@ -139,9 +141,11 @@ class MyInfoPage extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
                 child: InkWell(
-                  onTap: () {
-                    // 로그인 페이지로 날려버림!
-                    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginPage()), (route) => false);
+                  onTap: () async {
+                    // 저장된 로그인까지 지워야 새로고침해도 다시 로그인되지 않는다
+                    await Session.instance.logout();
+                    if (!context.mounted) return;
+                    resetTo(context, const LoginPage());
                   },
                   child: const Text("로그아웃", style: TextStyle(fontSize: 14, color: ThymeColor.textSub, fontWeight: FontWeight.bold)),
                 ),
@@ -160,7 +164,7 @@ class MyInfoPage extends StatelessWidget {
         selectedFontSize: 11,
         unselectedFontSize: 11,
         onTap: (index) {
-          if (index == 0) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const PartTimerHomePage()));
+          if (index == 0) resetTo(context, const PartTimerHomePage());
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: "근무표"),

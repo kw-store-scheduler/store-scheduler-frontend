@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../core/home_router.dart';
+import '../../core/session.dart';
 import '../../core/theme.dart';
+import '../common/a03_login_page.dart';
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_owner_header.dart';
 import '../../widgets/thyme_owner_tab_bar.dart';
@@ -12,12 +15,13 @@ import 'p09_open_shift_post_page.dart';
 
 /// 설정 메뉴 한 줄. [count]는 할 일 수(딥 나이트 숫자 배지), [value]는 현재 설정값(회색 글자)
 class _MenuItem {
-  const _MenuItem(this.label, {this.value, this.count, this.page});
+  const _MenuItem(this.label, {this.value, this.count, this.page, this.logout = false});
 
   final String label;
   final String? value;
   final int? count;
   final Widget Function()? page;
+  final bool logout;
 }
 
 /// P08 매장 설정. 근무 규칙 · 사람 · 계정
@@ -41,6 +45,7 @@ class StoreSettingsPage extends StatelessWidget {
     ("계정", [
       const _MenuItem("구독 · 요금제", value: "베이직"),
       const _MenuItem("근로자 역할도 쓰기"),
+      const _MenuItem("로그아웃", logout: true),
     ]),
   ];
 
@@ -107,7 +112,14 @@ class StoreSettingsPage extends StatelessWidget {
 
   Widget _buildRow(BuildContext context, _MenuItem item) {
     return InkWell(
-      onTap: item.page == null ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => item.page!())),
+      onTap: item.logout
+          ? () async {
+              // 저장된 로그인까지 지워야 새로고침해도 다시 로그인되지 않는다
+              await Session.instance.logout();
+              if (!context.mounted) return;
+              resetTo(context, const LoginPage());
+            }
+          : (item.page == null ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => item.page!()))),
       borderRadius: BorderRadius.circular(18),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -124,7 +136,7 @@ class StoreSettingsPage extends StatelessWidget {
                 child: Text("${item.count}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ThymeColor.onPrimary)),
               ),
             const SizedBox(width: 8),
-            Icon(Icons.chevron_right, color: item.page == null ? ThymeColor.border : ThymeColor.icon),
+            if (!item.logout) Icon(Icons.chevron_right, color: item.page == null ? ThymeColor.border : ThymeColor.icon),
           ],
         ),
       ),

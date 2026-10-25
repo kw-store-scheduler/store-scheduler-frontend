@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/thyme_back_button.dart';
 import '../../core/theme.dart';
 import 'a05_terms_agreement_page.dart';
 
@@ -12,10 +13,7 @@ class PhoneVerificationPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: ThymeColor.bg,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.text),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: ThymeBackButton(),
       ),
       body: SafeArea(
         child: Padding(

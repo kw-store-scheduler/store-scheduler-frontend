@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/thyme_back_button.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../theme/thyme_theme.dart';
@@ -47,10 +48,7 @@ class _ProposalComparePageState extends State<ProposalComparePage> {
       appBar: AppBar(
         backgroundColor: ThymeColor.primary,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: ThymeColor.onPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: ThymeBackButton(icon: Icons.arrow_back, color: ThymeColor.onPrimary),
       ),
       body: Column(
         children: [

@@ -89,7 +89,7 @@ class FixedSchedulePage extends StatelessWidget {
                 child: FilledButton(onPressed: () {
                     final d = draft;
                     if (d == null) {
-                      Navigator.pop(context); // 내 정보에서 온 경우
+                      Navigator.maybePop(context); // 내 정보에서 온 경우
                       return;
                     }
                     Navigator.push(context, MaterialPageRoute(builder: (context) => DateShiftPage(draft: d)));

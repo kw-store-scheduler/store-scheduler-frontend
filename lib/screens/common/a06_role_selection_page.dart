@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/thyme_back_button.dart';
 import '../../core/api_service.dart';
 import '../../core/session.dart';
 import '../../core/theme.dart';
@@ -43,10 +44,7 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
       appBar: AppBar(
         backgroundColor: ThymeColor.bg,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.text, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: ThymeBackButton(size: 20),
       ),
       body: SafeArea(
         child: Padding(

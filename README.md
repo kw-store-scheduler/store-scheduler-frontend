@@ -14,9 +14,8 @@ flutter run                                   # 서버 주소를 안 주면 로�
 flutter run --dart-define=API_BASE_URL=https://store-scheduler-backend-cqpv.onrender.com
 ```
 
-- 로그인하지 않으면 시안과 같은 시연 데이터로 화면이 동작합니다.
-- 백엔드에 소셜·휴대폰 로그인이 아직 없어서, 로그인 화면 아래 **개발용 ID 로그인**으로 서버 계정을 만들고 로그인합니다.
-  디버그 빌드에서는 항상 보이고, 릴리스 빌드는 `--dart-define=DEV_LOGIN=true`를 줄 때만 보입니다.
+- 로그인은 아이디·비밀번호입니다 (백엔드에 소셜·휴대폰 로그인이 아직 없음). 로그인 화면에서 회원가입도 됩니다.
+- 로그인은 브라우저 저장소(shared_preferences)에 남아서 새로고침해도 유지되고, 토큰이 만료되면 로그인 화면으로 돌아갑니다.
 
 ## 웹 빌드 · 배포 (Firebase Hosting)
 
@@ -24,8 +23,7 @@ flutter run --dart-define=API_BASE_URL=https://store-scheduler-backend-cqpv.onre
 
 ```bash
 flutter build web --release \
-  --dart-define=API_BASE_URL=https://store-scheduler-backend-cqpv.onrender.com \
-  --dart-define=DEV_LOGIN=true
+  --dart-define=API_BASE_URL=https://store-scheduler-backend-cqpv.onrender.com
 firebase deploy --only hosting
 ```
 
