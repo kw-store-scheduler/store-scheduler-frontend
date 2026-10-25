@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import 'a04_phone_verification_page.dart';
@@ -110,8 +109,8 @@ class LoginPage extends StatelessWidget {
                 ),
               ),
               
-              // [개발용] 소셜 로그인이 백엔드에 생기기 전까지 실제 서버로 확인할 때만 (디버그 빌드 전용)
-              if (kDebugMode)
+              // [개발용] 소셜 로그인이 백엔드에 생기기 전까지 실제 서버로 확인할 때만 (디버그 빌드 또는 DEV_LOGIN=true)
+              if (devLoginEnabled)
                 Center(
                   child: TextButton(
                     onPressed: () => showDevLoginSheet(context),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/api_service.dart';
 import '../../core/push_service.dart';
@@ -11,10 +12,14 @@ import '../worker/h01_part_timer_home_page.dart';
 import '../worker/h02_employee_home_page.dart';
 import 'a06_role_selection_page.dart';
 
+/// 개발용 로그인을 보여 줄지. 디버그 빌드는 항상, 릴리스 빌드는 `--dart-define=DEV_LOGIN=true`로 켠다
+/// (배포한 웹에서 백엔드와 연동을 확인할 때). 소셜 로그인이 생기면 이 값과 함께 지운다.
+const devLoginEnabled = kDebugMode || bool.fromEnvironment('DEV_LOGIN');
+
 /// [개발용] 아이디·비밀번호 로그인.
 ///
 /// 백엔드에 소셜·휴대폰 로그인이 아직 없어서 실제 서버로 흐름을 확인할 때만 쓴다.
-/// LoginPage가 디버그 빌드에서만 띄우고, 소셜 로그인이 생기면 이 파일을 지운다.
+/// LoginPage가 [devLoginEnabled]일 때만 띄우고, 소셜 로그인이 생기면 이 파일을 지운다.
 Future<void> showDevLoginSheet(BuildContext context) {
   return showModalBottomSheet(
     context: context,
