@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../core/theme.dart';
 import '../theme/thyme_colors.dart';
 import '../theme/thyme_theme.dart';
+import 'thyme_back_button.dart';
 
 /// 온보딩(가입·희망 신청·매장 등록) 화면 공통 상단 바.
 ///
@@ -16,6 +18,7 @@ class ThymeStepAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.owner = false,
     this.closeIcon = false,
     this.actions,
+    this.leading,
   });
 
   final int step;
@@ -34,6 +37,9 @@ class ThymeStepAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// 단계 표시 오른쪽에 붙는 버튼 (예: 건너뛰기)
   final List<Widget>? actions;
 
+  /// 뒤로가기 대신 둘 것 (예: 매장 등록 첫 화면의 로고)
+  final Widget? leading;
+
   static const double _barHeight = 4;
 
   @override
@@ -46,10 +52,10 @@ class ThymeStepAppBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: t.bg,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
-      leading: IconButton(
-        icon: Icon(closeIcon ? Icons.close : Icons.arrow_back_ios, color: t.text, size: 20),
-        onPressed: () => Navigator.maybePop(context),
-      ),
+      // 아래에 화면이 없으면(첫 화면) 뒤로가기를 숨긴다
+      automaticallyImplyLeading: false,
+      leading: leading ?? ThymeBackButton(icon: closeIcon ? Icons.close : Icons.arrow_back_ios, color: t.text, size: 20),
+      leadingWidth: leading == null ? null : 140,
       centerTitle: true,
       title: title == null
           ? null
@@ -92,3 +98,14 @@ class ThymeStepAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 }
+
+/// 매장 설정(P08)에서 등록 화면(O02~O06)을 고칠 때 쓰는 상단 바: ← 제목 (진행바 없음)
+PreferredSizeWidget thymeEditAppBar(String title) => AppBar(
+      backgroundColor: ThymeColor.bg,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      automaticallyImplyLeading: false,
+      leading: const ThymeBackButton(icon: Icons.arrow_back_ios, color: ThymeColor.text, size: 20),
+      centerTitle: true,
+      title: Text(title, style: const TextStyle(color: ThymeColor.text, fontSize: 17, fontWeight: FontWeight.bold)),
+    );

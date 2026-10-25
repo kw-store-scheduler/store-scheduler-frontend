@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/thyme_back_button.dart';
 import '../../core/theme.dart';
 import 'h13_fill_vacancy_page.dart';
 
@@ -27,10 +28,7 @@ class _AbsenceReportPageState extends State<AbsenceReportPage> {
       appBar: AppBar(
         backgroundColor: ThymeColor.bg,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.text, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: ThymeBackButton(size: 20),
         title: const Text(
           "결원 신고",
           style: TextStyle(color: ThymeColor.text, fontSize: 16, fontWeight: FontWeight.bold),

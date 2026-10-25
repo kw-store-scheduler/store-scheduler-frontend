@@ -15,6 +15,18 @@ class JoinApi {
   /// 서버가 만드는 매장 코드 길이 (UUID 앞 8자리, 대문자)
   static const codeLength = 8;
 
+  /// 초대 링크를 여는 주소 (웹 배포본). 다른 주소로 배포하면 --dart-define=APP_URL=... 로 바꾼다
+  static const appUrl = String.fromEnvironment('APP_URL', defaultValue: 'https://thyme-6730c.web.app');
+
+  /// P02 '링크 복사'·QR: 웹 앱을 열면 J01 에 코드가 미리 채워진다
+  static String inviteLink(String storeCode) => '$appUrl/?code=$storeCode';
+
+  /// 초대 링크로 들어왔으면 그 매장 코드 (웹에서만 주소에 남아 있다)
+  static String? get invitedCode {
+    final code = Uri.base.queryParameters['code']?.trim().toUpperCase();
+    return code != null && code.length == codeLength ? code : null;
+  }
+
   /// J01: 합류 전 매장 확인. 틀린 코드면 ApiException("유효하지 않은 매장 코드입니다.")
   Future<StorePreview> preview(String storeCode) async =>
       StorePreview.fromJson(await _api.get('/api/stores/code/${storeCode.toUpperCase()}') as Map<String, dynamic>);

@@ -1,11 +1,11 @@
 {
-    "name": "thyme_frontend",
-    "short_name": "thyme_frontend",
+    "name": "Thyme",
+    "short_name": "Thyme",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Thyme · 교대 근무 매장 근무표 자동 생성",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

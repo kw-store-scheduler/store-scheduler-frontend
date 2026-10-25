@@ -29,6 +29,17 @@ enum SkillLevel {
   final String label;
 }
 
+/// 혼자 맡길 수 있는 일 (서버 EmployeePermission). 시간대 필요 조건으로도 쓴다 (예: 화·금 10–12 발주 가능자)
+enum EmployeePermission {
+  soloOpen('혼자 오픈'),
+  closingSettlement('마감 정산'),
+  storeKey('매장 열쇠'),
+  ordering('발주 가능자');
+
+  const EmployeePermission(this.label);
+  final String label;
+}
+
 const weekdayNames = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
 const weekdayLabels = ['월', '화', '수', '목', '금', '토', '일'];
 
@@ -104,9 +115,45 @@ class StoreInfo {
       );
 }
 
+/// GET /api/stores/{storeId}/schedules/plan: 다음 근무표 기간과 일정 (O02)
+class SchedulePlan {
+  const SchedulePlan({
+    required this.cycle,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.autoGenerate,
+    required this.generateAt,
+    required this.preferenceDeadline,
+  });
+
+  final ScheduleCycle cycle;
+  final DateTime periodStart;
+  final DateTime periodEnd;
+  final bool autoGenerate;
+  final DateTime generateAt;
+  final DateTime preferenceDeadline;
+
+  factory SchedulePlan.fromJson(Map<String, dynamic> j) => SchedulePlan(
+        cycle: fromServerEnum(ScheduleCycle.values, j['cycle'] as String),
+        periodStart: DateTime.parse(j['periodStart'] as String),
+        periodEnd: DateTime.parse(j['periodEnd'] as String),
+        autoGenerate: j['autoGenerate'] as bool? ?? false,
+        generateAt: DateTime.parse(j['generateAt'] as String),
+        preferenceDeadline: DateTime.parse(j['preferenceDeadline'] as String),
+      );
+}
+
 /// GET /api/stores/{storeId}/shifts 한 줄
 class ShiftInfo {
-  const ShiftInfo({required this.id, required this.name, required this.startTime, required this.endTime, required this.requiredStaff, required this.dayStaffing});
+  const ShiftInfo({
+    required this.id,
+    required this.name,
+    required this.startTime,
+    required this.endTime,
+    required this.requiredStaff,
+    required this.dayStaffing,
+    this.dayOfWeek,
+  });
 
   final int id;
   final String name;
@@ -114,6 +161,14 @@ class ShiftInfo {
   final String endTime;
   final int requiredStaff; // 요일별 인원이 없을 때 기본값
   final Map<int, int> dayStaffing; // 요일 index(0=월) → 최소 인원
+  final String? dayOfWeek; // 특정 요일만 있는 교대 ("MONDAY"). 대부분 null = 매일
+
+  /// 근무 시간 (분). 밤을 넘기는 교대(22:00–06:00)도 계산한다
+  int get minutes {
+    int m(String t) => int.parse(t.substring(0, 2)) * 60 + int.parse(t.substring(3, 5));
+    final d = m(endTime) - m(startTime);
+    return d <= 0 ? d + 24 * 60 : d;
+  }
 
   /// 요일별 최소 인원 (설정이 없으면 교대 기본값)
   int minStaffOn(int weekdayIndex) => dayStaffing[weekdayIndex] ?? requiredStaff;
@@ -124,6 +179,7 @@ class ShiftInfo {
         startTime: j['startTime'] as String,
         endTime: j['endTime'] as String,
         requiredStaff: j['requiredStaff'] as int? ?? 1,
+        dayOfWeek: j['dayOfWeek'] as String?,
         dayStaffing: {
           for (final d in j['dayStaffing'] as List? ?? [])
             weekdayNames.indexOf(d['dayOfWeek'] as String): d['minStaff'] as int,
@@ -152,15 +208,30 @@ class StorePreview {
 
 /// 예외일 (O06). endDate가 있으면 기간, shiftId가 없으면 그날 모든 교대
 class StaffingException {
-  const StaffingException({this.id, required this.date, this.endDate, this.shiftName, required this.category, this.deltaStaff, this.minStaff, this.note});
+  const StaffingException({
+    this.id,
+    required this.date,
+    this.endDate,
+    this.shiftId,
+    this.shiftName,
+    required this.category,
+    this.deltaStaff,
+    this.minStaff,
+    this.startTimeOverride,
+    this.endTimeOverride,
+    this.note,
+  });
 
   final int? id;
   final DateTime date;
   final DateTime? endDate;
+  final int? shiftId; // null이면 그날 모든 교대
   final String? shiftName;
   final ExceptionCategory category;
   final int? deltaStaff; // 평소 대비 +N
   final int? minStaff; // 덮어쓰기 (0이면 휴점)
+  final String? startTimeOverride; // "09:00:00"
+  final String? endTimeOverride;
   final String? note;
 
   bool covers(DateTime d) {
@@ -172,10 +243,13 @@ class StaffingException {
         id: j['id'] as int?,
         date: DateTime.parse(j['date'] as String),
         endDate: j['endDate'] == null ? null : DateTime.parse(j['endDate'] as String),
+        shiftId: j['shiftId'] as int?,
         shiftName: j['shiftName'] as String?,
         category: fromServerEnum(ExceptionCategory.values, j['category'] as String? ?? 'OTHER'),
         deltaStaff: j['deltaStaff'] as int?,
         minStaff: j['minStaff'] as int?,
+        startTimeOverride: j['startTimeOverride'] as String?,
+        endTimeOverride: j['endTimeOverride'] as String?,
         note: j['note'] as String?,
       );
 
@@ -183,9 +257,12 @@ class StaffingException {
   Map<String, dynamic> toJson() => {
         'date': dateParam(date),
         if (endDate != null) 'endDate': dateParam(endDate!),
+        'shiftId': ?shiftId,
         'category': toServerEnum(category),
         'deltaStaff': ?deltaStaff,
         'minStaff': ?minStaff,
+        'startTimeOverride': ?startTimeOverride,
+        'endTimeOverride': ?endTimeOverride,
         if (note != null && note!.isNotEmpty) 'note': note,
       };
 }
@@ -210,8 +287,10 @@ class SkillWindow {
     this.skillId,
     this.skillName,
     this.minLevel,
+    this.permission,
     this.requiredCount = 1,
     this.mandatory = true,
+    this.days = const [],
   });
 
   final int? id;
@@ -221,14 +300,28 @@ class SkillWindow {
   final int? skillId;
   final String? skillName;
   final SkillLevel? minLevel;
+  final EmployeePermission? permission; // 역량 대신 '발주 가능자' 같은 권한
   final int requiredCount;
   final bool mandatory; // false면 '우선'
+  final List<int> days; // 요일 index(0=월). 비면 매일
 
-  /// 화면용 태그: "응대 상 · 필수"
+  /// 화면용 태그: "응대 상 · 필수", "발주 가능자 1 · 필수"
   String get tag => [
-        [skillName ?? '', if (minLevel != null && minLevel != SkillLevel.none) minLevel!.label].where((s) => s.isNotEmpty).join(' '),
+        [
+          skillName ?? permission?.label ?? '',
+          if (minLevel != null && minLevel != SkillLevel.none) minLevel!.label,
+          if (requiredCount > 1 || permission != null) '$requiredCount',
+        ].where((s) => s.isNotEmpty).join(' '),
         mandatory ? '필수' : '우선',
       ].join(' · ');
+
+  /// 화면용 시간: "피크 12–14", "화·금 10–12"
+  String get when {
+    String h(String t) => t.substring(3, 5) == '00' ? t.substring(0, 2) : hhmm(t);
+    final dayText = days.isEmpty || days.length == 7 ? '' : '${days.map((d) => weekdayLabels[d]).join('·')} ';
+    final name = label.isEmpty ? '' : '$label ';
+    return '$name$dayText${h(startTime)}–${h(endTime)}';
+  }
 
   factory SkillWindow.fromJson(Map<String, dynamic> j) => SkillWindow(
         id: j['id'] as int?,
@@ -238,8 +331,10 @@ class SkillWindow {
         skillId: j['skillId'] as int?,
         skillName: j['skillName'] as String?,
         minLevel: j['minLevel'] == null ? null : fromServerEnum(SkillLevel.values, j['minLevel'] as String),
+        permission: j['permission'] == null ? null : fromServerEnum(EmployeePermission.values, j['permission'] as String),
         requiredCount: j['requiredCount'] as int? ?? 1,
         mandatory: j['mandatory'] as bool? ?? true,
+        days: [for (final d in j['days'] as List? ?? []) weekdayNames.indexOf(d as String)],
       );
 
   /// POST /skill-windows 본문
@@ -249,7 +344,29 @@ class SkillWindow {
         'endTime': endTime,
         'skillId': ?skillId,
         if (minLevel != null) 'minLevel': toServerEnum(minLevel!),
+        if (permission != null) 'permission': toServerEnum(permission!),
         'requiredCount': requiredCount,
         'mandatory': mandatory,
+        if (days.isNotEmpty) 'days': [for (final d in days) weekdayNames[d]],
       };
+}
+
+/// GET /api/stores/{storeId}/skill-matrix 한 줄: 직원 × 역량 등급 (O04 Q1, M03)
+class SkillMatrixRow {
+  const SkillMatrixRow({required this.employeeId, required this.name, required this.onProbation, required this.levels});
+
+  final int employeeId;
+  final String name;
+  final bool onProbation;
+  final Map<int, SkillLevel?> levels; // 역량 id → 확정 등급 (없으면 null)
+
+  factory SkillMatrixRow.fromJson(Map<String, dynamic> j) => SkillMatrixRow(
+        employeeId: j['employeeId'] as int,
+        name: j['name'] as String? ?? '',
+        onProbation: j['onProbation'] as bool? ?? false,
+        levels: {
+          for (final s in j['skills'] as List? ?? [])
+            s['skillId'] as int: s['level'] == null ? null : fromServerEnum(SkillLevel.values, s['level'] as String),
+        },
+      );
 }

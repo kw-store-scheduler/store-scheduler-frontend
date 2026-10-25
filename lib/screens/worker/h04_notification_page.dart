@@ -1,146 +1,137 @@
 import 'package:flutter/material.dart';
+import '../../core/api_service.dart';
+import '../../core/notification_api.dart';
 import '../../core/theme.dart';
-// 행님이 이미 깎아두신 화면들 실전 임포트!
-import 'h07_vacant_shift_board_page.dart'; // 대타 요청 ➔ 빈 근무 게시판
-import 'w07_my_schedule_page.dart';        // 근무표 확정 ➔ 내 근무표
+import '../../widgets/thyme_back_button.dart';
 
-class NotificationPage extends StatelessWidget {
+/// H04 알림 (점주·근로자 공통). 대타 요청·근무표 확정·마감 알림 등 서버가 보낸 알림 목록.
+/// 누르면 읽음, '모두 읽음'으로 한 번에 정리한다
+class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
 
   @override
+  State<NotificationPage> createState() => _NotificationPageState();
+}
+
+class _NotificationPageState extends State<NotificationPage> {
+  List<NotificationItem>? _items;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _error = null);
+    try {
+      final (_, items) = await NotificationApi().list();
+      if (mounted) setState(() => _items = items);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
+
+  Future<void> _read(NotificationItem n) async {
+    if (n.read) return;
+    try {
+      await NotificationApi().markRead(n.id);
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _readAll() async {
+    try {
+      await NotificationApi().markAllRead();
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  static String _when(DateTime t) {
+    final now = DateTime.now();
+    final diff = now.difference(t);
+    if (diff.inMinutes < 1) return "방금";
+    if (diff.inHours < 1) return "${diff.inMinutes}분 전";
+    if (DateUtils.isSameDay(now, t)) return "${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}";
+    return "${t.month}/${t.day}";
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final items = _items;
+    final hasUnread = items?.any((n) => !n.read) ?? false;
     return Scaffold(
       backgroundColor: ThymeColor.bg,
       appBar: AppBar(
         backgroundColor: ThymeColor.bg,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.text),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text("알림", style: TextStyle(color: ThymeColor.text, fontSize: 16, fontWeight: FontWeight.bold)),
+        automaticallyImplyLeading: false,
+        leading: const ThymeBackButton(),
+        title: const Text("알림", style: TextStyle(color: ThymeColor.text, fontSize: 17, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: () {
-              // 모두 읽음 처리 로직 (상태관리 연동 시 구현)
-            },
-            child: const Text("모두 읽음", style: TextStyle(color: ThymeColor.textSub, fontSize: 14, fontWeight: FontWeight.bold)),
+            onPressed: hasUnread ? _readAll : null,
+            child: const Text("모두 읽음", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          children: [
-            const Text("오늘", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.textSub)),
-            const SizedBox(height: 12),
-            
-            // 대타 요청 (Rose)
-            _buildNotificationItem(
-              context,
-              dotColor: ThymeColor.danger,
-              backgroundColor: ThymeColor.dangerBg,
-              title: "대타 요청 · 11/25(수) 마감 17~22시",
-              content: "신은지 님 결원 · 가능하다고 한 2명에게 보냈어요",
-              time: "08:40",
-              targetPage: const VacantShiftBoardPage(), // 행님 파일로 이동!
-            ),
-            
-            // 새 공지 (Periwinkle)
-            _buildNotificationItem(
-              context,
-              dotColor: ThymeColor.info,
-              backgroundColor: ThymeColor.surface,
-              title: "새 공지 · 겨울 신메뉴 레시피",
-              content: "사장님이 필독으로 올렸어요",
-              time: "08:12",
-              targetPage: const VacantShiftBoardPage(), // 공지 상세가 없으니 일단 빈 근무 게시판으로 매핑
-            ),
-            
-            // 희망 제출 마감 (Yellow)
-            _buildNotificationItem(
-              context,
-              dotColor: ThymeColor.warn,
-              backgroundColor: ThymeColor.surface,
-              title: "12월 희망 제출 마감 D-7",
-              content: "지난달 답을 불러오면 1분이면 끝나요",
-              time: "07:30",
-              targetPage: const MySchedulePage(), // 마감 알림 클릭 시 스케줄 페이지로
-            ),
-            
-            const SizedBox(height: 24),
-            const Text("이번 주", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.textSub)),
-            const SizedBox(height: 12),
-
-            // 교대 요청 승인 (Mint)
-            _buildNotificationItem(
-              context,
-              dotColor: ThymeColor.accent,
-              backgroundColor: ThymeColor.surface,
-              title: "교대 요청이 승인됐어요",
-              content: "11/18(수) 마감 ➔ 우다현 님과 교대 · 수정된 근무표 확인",
-              time: "11/17",
-              targetPage: const MySchedulePage(), // 행님 파일로 이동!
-            ),
-
-            // 근무표 확정 (Mint)
-            _buildNotificationItem(
-              context,
-              dotColor: ThymeColor.accent,
-              backgroundColor: ThymeColor.surface,
-              title: "11월 근무표가 확정됐어요",
-              content: "10일 · 62.5시간 · 희망 반영 18/18",
-              time: "10/28",
-              targetPage: const MySchedulePage(), // 행님 파일로 이동!
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNotificationItem(BuildContext context, {required Color dotColor, required Color backgroundColor, required String title, required String content, required String time, required Widget targetPage}) {
-    return GestureDetector(
-      onTap: () {
-        // 주석 없음! 바로 실제 페이지로 꽂아버립니다 행님!
-        Navigator.push(context, MaterialPageRoute(builder: (context) => targetPage));
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(16),
-          border: backgroundColor == ThymeColor.surface ? Border.all(color: ThymeColor.border) : null,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 4.0),
-              child: Icon(Icons.circle, size: 8, color: dotColor),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(child: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.text))),
-                      Text(time, style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(content, style: TextStyle(fontSize: 13, color: ThymeColor.charcoal, height: 1.4)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      body: _error != null
+          ? Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(_error!, style: const TextStyle(color: ThymeColor.dangerText)),
+                TextButton(onPressed: _load, child: const Text("다시 불러오기")),
+              ]),
+            )
+          : items == null
+              ? const Center(child: CircularProgressIndicator())
+              : items.isEmpty
+                  ? const Center(child: Text("아직 알림이 없어요.", style: TextStyle(fontSize: 15, color: ThymeColor.textSub)))
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                        itemCount: items.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (context, i) {
+                          final n = items[i];
+                          return Material(
+                            color: n.read ? ThymeColor.surfaceSub : ThymeColor.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () => _read(n),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Icon(Icons.circle, size: 8, color: n.read ? Colors.transparent : ThymeColor.info),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Text(n.title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: n.read ? ThymeColor.textSub : ThymeColor.text)),
+                                      if (n.body.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(n.body, style: const TextStyle(fontSize: 14, color: ThymeColor.textSub, height: 1.4)),
+                                      ],
+                                    ]),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(_when(n.createdAt), style: const TextStyle(fontSize: 12, color: ThymeColor.textSub)),
+                                ]),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
     );
   }
 }

@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thyme_frontend/theme/thyme_theme.dart';
 
 /// 테스트 기본 폰트는 글자가 전부 정사각형이라 실제보다 넓다.
@@ -11,6 +13,8 @@ import 'package:thyme_frontend/theme/thyme_theme.dart';
 String _family = 'IBM Plex Sans KR';
 
 Future<void> loadTestFonts() async {
+  // 로그인 저장소(shared_preferences)를 테스트용 메모리 저장소로
+  SharedPreferences.setMockInitialValues({});
   // 테스트 환경에서는 폰트를 내려받지 않는다
   GoogleFonts.config.allowRuntimeFetching = false;
   final regular = File('C:/Windows/Fonts/malgun.ttf');
@@ -32,6 +36,10 @@ Future<void> pumpScreen(WidgetTester tester, Widget home) async {
   final theme = ThymeTheme.light();
   await tester.pumpWidget(MaterialApp(
     theme: theme.copyWith(textTheme: theme.textTheme.apply(fontFamily: _family)),
+    // 실제 앱(main.dart)과 같이 한국어 (달력 '확인'·'취소' 등)
+    locale: const Locale('ko', 'KR'),
+    supportedLocales: const [Locale('ko', 'KR')],
+    localizationsDelegates: GlobalMaterialLocalizations.delegates,
     home: home,
   ));
 }

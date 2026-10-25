@@ -1,127 +1,177 @@
 import 'package:flutter/material.dart';
+import '../../core/api_service.dart';
+import '../../core/owner_api.dart';
 import '../../core/theme.dart';
+import '../../models/owner.dart';
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_leaf.dart';
 import '../../widgets/thyme_owner_header.dart';
+import 'o04_curation_page.dart';
 import 'p06_substitute_manage_page.dart';
 
-/// 시간대 하나의 필요 역량과 배치 결과 (백엔드 GET /skill-coverage 와 같은 내용)
-class _SkillSlot {
-  const _SkillSlot(this.time, this.name, this.skills, this.people, {this.shortage});
-
-  final String time;
-  final String name;
-  final List<String> skills; // "응대 상 · 필수"처럼 등급·필수/우선까지
-  final String people;
-  final String? shortage; // 결원이면 사유
-}
-
-/// M03 역량 매칭. 그날 시간대별 필요 역량을 채운 사람과 결원
-///
-/// 시안은 카드 왼쪽 세로줄로 상태를 보이지만, 가이드 1-1(왼쪽 세로줄 카드 X)과
-/// 5장(M03: 결원 행만 로즈 점·테두리)을 따라 결원 카드만 로즈 테두리 + 점으로 표시한다.
-class SkillMatchingPage extends StatelessWidget {
+/// M03 역량 매칭. 그날 시간대별 필요 역량(O04)을 채운 사람과 결원 (GET /skill-coverage)
+class SkillMatchingPage extends StatefulWidget {
   const SkillMatchingPage({super.key});
 
-  static const _slots = [
-    _SkillSlot("09–12", "오픈", ["오픈·마감"], "지수 · 하준"),
-    _SkillSlot("12–14", "피크", ["응대 상 · 필수", "중국어 · 필수"], "지수 · 서연 · 하준(중국어 상)"),
-    _SkillSlot("17–22", "마감", ["응대"], "", shortage: "민호 결원 · 가능한 2명에게 대타 요청 중"),
-    _SkillSlot("18–20", "저녁 피크", ["영어 · 우선"], "태윤(영어 상) · 서연"),
-    _SkillSlot("20–22", "마감", ["정산 · 필수"], "서연(정산 중) · 태윤(POS)"),
-  ];
+  @override
+  State<SkillMatchingPage> createState() => _SkillMatchingPageState();
+}
+
+class _SkillMatchingPageState extends State<SkillMatchingPage> {
+  DateTime _date = DateUtils.dateOnly(DateTime.now());
+  List<SkillCoverage>? _rows;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _error = null;
+      _rows = null;
+    });
+    try {
+      final rows = await OwnerApi().skillCoverage(_date);
+      if (mounted) setState(() => _rows = rows);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
+
+  void _move(int days) {
+    _date = _date.add(Duration(days: days));
+    _load();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final covered = _slots.where((s) => s.shortage == null).length;
-    final shortage = _slots.firstWhere((s) => s.shortage != null);
+    final rows = _rows;
+    final ok = rows?.where((r) => r.satisfied).length ?? 0;
+    final short = (rows?.length ?? 0) - ok;
+    final vacancy = rows?.expand((r) => r.vacancies).firstOrNull;
     return Scaffold(
       backgroundColor: ThymeColor.bg,
-      body: Column(
-        children: [
-          const ThymeOwnerHeader(title: "역량 매칭", showBack: true),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("11월 25일 수요일", style: TextStyle(fontSize: 15, color: ThymeColor.textSub)),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const ThymeLeaf(size: 14),
-                      const SizedBox(width: 6),
-                      Text("역량 충족 $covered", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                      const SizedBox(width: 12),
-                      const Icon(Icons.circle, size: 8, color: ThymeColor.danger),
-                      const SizedBox(width: 6),
-                      const Text("결원 1", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.dangerText)),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  for (final s in _slots) ...[
-                    _buildSlot(context, s),
-                    const SizedBox(height: 10),
-                  ],
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubstituteManagePage())),
-                      child: Text("${shortage.name} ${shortage.time} 대타 요청 현황 보기"),
+      body: Column(children: [
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _load,
+            child: ListView(padding: EdgeInsets.zero, children: [
+              const ThymeOwnerHeader(title: "역량 매칭", showBack: true),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  Row(children: [
+                    IconButton(tooltip: "전날", onPressed: () => _move(-1), icon: const Icon(Icons.chevron_left)),
+                    Expanded(
+                      child: Text("${_date.month}월 ${_date.day}일 ${["월", "화", "수", "목", "금", "토", "일"][_date.weekday - 1]}요일",
+                          textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, color: ThymeColor.textSub)),
                     ),
-                  ),
-                ],
+                    IconButton(tooltip: "다음 날", onPressed: () => _move(1), icon: const Icon(Icons.chevron_right)),
+                  ]),
+                  if (rows != null && rows.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(children: [
+                        const ThymeLeaf(size: 18),
+                        const SizedBox(width: 8),
+                        Text("역량 충족 $ok", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+                        if (short > 0) ...[
+                          const SizedBox(width: 12),
+                          const Icon(Icons.circle, size: 10, color: ThymeColor.danger),
+                          const SizedBox(width: 6),
+                          Text("부족 $short", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.dangerText)),
+                        ],
+                      ]),
+                    ),
+                  if (_error != null) ...[
+                    Text(_error!, style: const TextStyle(color: ThymeColor.dangerText)),
+                    TextButton(onPressed: _load, child: const Text("다시 불러오기")),
+                  ] else if (rows == null)
+                    const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))
+                  else if (rows.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(color: ThymeColor.surfaceSub, borderRadius: BorderRadius.circular(16)),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const Text("이 날 필요한 역량 조건이 없어요.", style: TextStyle(fontSize: 14, color: ThymeColor.textSub)),
+                        TextButton(
+                          onPressed: () async {
+                            await Navigator.push(context, MaterialPageRoute(builder: (_) => const CurationPage(editing: true)));
+                            if (mounted) _load();
+                          },
+                          child: const Text("필요한 역량 정하기 →"),
+                        ),
+                      ]),
+                    )
+                  else
+                    for (final r in rows) _card(r),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+        if (vacancy != null)
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SubstituteManagePage(requestId: vacancy.$1))),
+                  child: Text("${vacancy.$2} 결원 · 대타 요청 현황 보기"),
+                ),
               ),
             ),
           ),
-        ],
-      ),
+      ]),
     );
   }
 
-  Widget _buildSlot(BuildContext context, _SkillSlot s) {
-    final short = s.shortage != null;
+  Widget _card(SkillCoverage r) {
+    final w = r.window;
+    final bad = !r.satisfied;
     return Container(
-      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: ThymeColor.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: short ? Border.all(color: ThymeColor.danger, width: 1.5) : null,
+        borderRadius: BorderRadius.circular(20),
+        border: bad ? Border.all(color: ThymeColor.danger.withValues(alpha: 0.6), width: 2) : null,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(s.time, style: ThymeTheme.mono(context, size: 16)),
-              const SizedBox(width: 8),
-              Text(s.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-              const Spacer(),
-              if (short) const Icon(Icons.circle, size: 8, color: ThymeColor.danger),
-            ],
+      child: IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Container(width: 5, decoration: BoxDecoration(color: bad ? ThymeColor.danger : ThymeColor.accent, borderRadius: BorderRadius.circular(99))),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text.rich(TextSpan(children: [
+                TextSpan(text: "${hourRange(w.startTime, w.endTime)}  ", style: ThymeTheme.mono(context, size: 16)),
+                TextSpan(text: w.label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+              ])),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(color: ThymeColor.surfaceSub, borderRadius: BorderRadius.circular(99)),
+                child: Text(w.tag, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                bad
+                    ? [
+                        if (r.matchedNames.isNotEmpty) r.matchedNames.join(" · "),
+                        "${w.requiredCount - r.matchedNames.length > 0 ? w.requiredCount - r.matchedNames.length : 1}명 부족",
+                        for (final v in r.vacancies) "${v.$2} 결원",
+                      ].join(" · ")
+                    : r.matchedNames.join(" · "),
+                style: TextStyle(fontSize: 15, color: bad ? ThymeColor.dangerText : ThymeColor.textSub),
+              ),
+            ]),
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final skill in s.skills)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(color: ThymeColor.surfaceSub, borderRadius: BorderRadius.circular(99)),
-                  child: Text(skill, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            s.shortage ?? s.people,
-            style: TextStyle(fontSize: 14, color: short ? ThymeColor.dangerText : ThymeColor.textSub),
-          ),
-        ],
+        ]),
       ),
     );
   }

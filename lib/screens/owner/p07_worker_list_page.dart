@@ -1,152 +1,191 @@
 import 'package:flutter/material.dart';
+import '../../core/api_service.dart';
+import '../../core/owner_api.dart';
 import '../../core/theme.dart';
-// 행님이 이미 깎아두신 화면 & 다음 화면 임포트!
-import 'm01_worker_approval_page.dart'; 
-import 'p11_worker_profile_confirm_page.dart'; 
-import 'p01_owner_home_page.dart';
+import '../../models/owner.dart';
+import '../../models/user.dart';
+import '../../theme/thyme_theme.dart';
+import '../../widgets/thyme_owner_header.dart';
+import 'm01_worker_approval_page.dart';
+import 'p11_worker_profile_confirm_page.dart';
 
-class WorkerListPage extends StatelessWidget {
+/// P07 근무자 목록. GET /roster: 직원/알바, 오늘 상태(근무 중·결원·휴무), 이번 달 시간, 다음 달 희망 제출 여부
+class WorkerListPage extends StatefulWidget {
   const WorkerListPage({super.key});
 
   @override
+  State<WorkerListPage> createState() => _WorkerListPageState();
+}
+
+class _WorkerListPageState extends State<WorkerListPage> {
+  Roster? _roster;
+  EmploymentType? _filter; // null = 전체
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _error = null);
+    try {
+      final r = await OwnerApi().roster();
+      if (mounted) setState(() => _roster = r);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
+
+  Future<void> _open(Widget page) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    if (mounted) _load();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final r = _roster;
+    final all = r?.employees ?? const <RosterRow>[];
+    final full = all.where((e) => e.employmentType == EmploymentType.fullTime).length;
+    final shown = _filter == null ? all : all.where((e) => (e.employmentType ?? EmploymentType.partTime) == _filter).toList();
     return Scaffold(
       backgroundColor: ThymeColor.bg,
-      appBar: AppBar(
-        backgroundColor: ThymeColor.bg,
-        elevation: 0,
-        title: const Text("근무자 7명", style: TextStyle(color: ThymeColor.text, fontSize: 18, fontWeight: FontWeight.bold)),
-        centerTitle: false,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: TextButton(
-              style: TextButton.styleFrom(
-                backgroundColor: ThymeColor.surfaceSub,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              ),
-              onPressed: () {
-                // 행님이 만드신 승인 화면(M01)으로 촥!
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const WorkerApprovalPage()));
-              },
-              child: const Text("승인 대기 2", style: TextStyle(color: ThymeColor.text, fontWeight: FontWeight.bold, fontSize: 13)),
-            ),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 상단 탭 (UI)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-              child: Row(
-                children: [
-                  _buildTab("전체 7", true),
-                  const SizedBox(width: 8),
-                  _buildTab("직원 2", false),
-                  const SizedBox(width: 8),
-                  _buildTab("알바 5", false),
-                ],
-              ),
-            ),
-            const Divider(),
-            
-            // 근무자 리스트
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                children: [
-                  _buildWorkerRow(context, "지", "지수", "직원 · 매니저", "이번 달 30h", "오픈 09~14", true),
-                  _buildWorkerRow(context, "서", "서연", "직원 · 시니어", "이번 달 14h", "수업 13~22", true),
-                  _buildWorkerRow(context, "하", "하준", "알바", "이번 달 36h", "오픈 09~14", true),
-                  _buildWorkerRow(context, "유", "김유나", "알바", "이번 달 58.5h", "오픈 09~14", false, hasPending: true),
-                  _buildWorkerRow(context, "인", "민호", "알바", "이번 달 86h", "마감 17~22 · 거의 꽉참", true),
-                  _buildWorkerRow(context, "도", "도윤", "알바 · 신입", "이번 달 46h", "마감", true),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      
-      // 점주용 하단 네비게이션 바
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: ThymeColor.text,
-        unselectedItemColor: ThymeColor.disabled,
-        currentIndex: 4, // '근무자' 탭 활성화
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
-        onTap: (index) {
-          if (index == 0) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const OwnerHomePage()));
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: "홈"),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), label: "근무표"),
-          BottomNavigationBarItem(icon: Icon(Icons.swap_horiz), label: "대타"),
-          BottomNavigationBarItem(icon: Icon(Icons.attach_money), label: "인건비"),
-          BottomNavigationBarItem(icon: Icon(Icons.people_outline), label: "근무자"),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTab(String title, bool isSelected) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: isSelected ? ThymeColor.text : ThymeColor.surface,
-        border: Border.all(color: isSelected ? ThymeColor.text : ThymeColor.border),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isSelected ? ThymeColor.onPrimary : ThymeColor.textSub)),
-    );
-  }
-
-  Widget _buildWorkerRow(BuildContext context, String initial, String name, String role, String hours, String desc, bool isSubmitted, {bool hasPending = false}) {
-    return InkWell(
-      onTap: () {
-        // 개별 프로필 (P11) 화면으로 이동!
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const WorkerProfileConfirmPage()));
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16.0),
-        child: Row(
-          children: [
-            CircleAvatar(radius: 20, backgroundColor: ThymeColor.border, child: Text(initial, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.textSub))),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                      const SizedBox(width: 6),
-                      Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: ThymeColor.border, borderRadius: BorderRadius.circular(4)), child: Text(role, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: ThymeColor.charcoal))),
-                    ],
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(padding: EdgeInsets.zero, children: [
+          ThymeOwnerHeader(
+            title: "근무자 ${all.length}명",
+            showBack: true,
+            trailing: r == null
+                ? null
+                : FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: ThymeColor.surface,
+                      foregroundColor: ThymeColor.text,
+                      minimumSize: const Size(0, 48),
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                    ),
+                    onPressed: () => _open(const WorkerApprovalPage()),
+                    child: Text("승인 대기 ${r.pendingApprovals}"),
                   ),
-                  const SizedBox(height: 4),
-                  Text(desc, style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
-                ],
+            child: _tabs(all.length, full, all.length - full),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            child: _error != null
+                ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(_error!, style: const TextStyle(color: ThymeColor.dangerText)),
+                    TextButton(onPressed: _load, child: const Text("다시 불러오기")),
+                  ])
+                : r == null
+                    ? const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))
+                    : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        if (shown.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(color: ThymeColor.surfaceSub, borderRadius: BorderRadius.circular(16)),
+                            child: const Text("아직 승인된 근무자가 없어요. 매장 코드를 보내 초대하고, 가입 요청을 승인해 주세요.",
+                                style: TextStyle(fontSize: 14, color: ThymeColor.textSub, height: 1.5)),
+                          ),
+                        for (final e in shown) _row(e),
+                        if (shown.isNotEmpty)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 6),
+                            child: Text("● 민트 근무 중 · 회색 휴무 · 로즈 결원 · 오른쪽은 다음 달 희망 제출 상태",
+                                style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+                          ),
+                      ]),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _tabs(int all, int full, int part) => Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(color: ThymeColor.indigoSurface, borderRadius: BorderRadius.circular(18)),
+        child: Row(children: [
+          for (final (type, label) in [(null, "전체 $all"), (EmploymentType.fullTime, "직원 $full"), (EmploymentType.partTime, "알바 $part")])
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _filter = type),
+                child: Container(
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: _filter == type ? ThymeColor.surface : Colors.transparent, borderRadius: BorderRadius.circular(14)),
+                  child: Text(label,
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _filter == type ? ThymeColor.text : ThymeColor.onPrimarySub)),
+                ),
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(hours, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.circle, size: 8, color: hasPending ? ThymeColor.warn : ThymeColor.accent),
-                    const SizedBox(width: 4),
-                    Text(hasPending ? "미제출" : "제출", style: TextStyle(fontSize: 12, color: hasPending ? ThymeColor.warnText : ThymeColor.successText)),
-                  ],
+        ]),
+      );
+
+  Widget _row(RosterRow e) {
+    final (dot, status) = switch (e.todayStatus) {
+      'WORKING' => (ThymeColor.accent, "근무 · ${e.todayStart == null ? '' : hourRange(e.todayStart!, e.todayEnd!)}"),
+      'VACANCY' => (ThymeColor.danger, "결원${e.todayStart == null ? '' : ' · ${hourRange(e.todayStart!, e.todayEnd!)}'}"),
+      _ => (ThymeColor.disabled, "휴무"),
+    };
+    final full = e.employmentType == EmploymentType.fullTime;
+    final hours = e.monthHours == e.monthHours.roundToDouble() ? "${e.monthHours.toInt()}h" : "${e.monthHours}h";
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: ThymeColor.surface,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => _open(WorkerProfileConfirmPage(employeeId: e.employeeId)),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(children: [
+              Stack(clipBehavior: Clip.none, children: [
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: ThymeColor.selectedSoft,
+                  child: Text(e.name.isEmpty ? "?" : e.name.characters.first,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: ThymeColor.text)),
                 ),
-              ],
-            ),
-          ],
+                Positioned(
+                  right: -2,
+                  bottom: -2,
+                  child: Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(color: dot, shape: BoxShape.circle, border: Border.all(color: ThymeColor.surface, width: 3)),
+                  ),
+                ),
+              ]),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                    Text(e.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: full ? ThymeColor.primary : ThymeColor.selectedSoft, borderRadius: BorderRadius.circular(99)),
+                      child: Text(e.badge,
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: full ? ThymeColor.onPrimary : ThymeColor.text)),
+                    ),
+                  ]),
+                  const SizedBox(height: 4),
+                  Text(status, style: const TextStyle(fontSize: 14, color: ThymeColor.textSub)),
+                ]),
+              ),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text(hours, style: ThymeTheme.mono(context, size: 16)),
+                const SizedBox(height: 6),
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.circle, size: 8, color: e.nextMonthSubmitted ? ThymeColor.accent : ThymeColor.danger),
+                  const SizedBox(width: 4),
+                  Text(e.nextMonthSubmitted ? "제출" : "미제출",
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: e.nextMonthSubmitted ? ThymeColor.successText : ThymeColor.dangerText)),
+                ]),
+              ]),
+            ]),
+          ),
         ),
       ),
     );

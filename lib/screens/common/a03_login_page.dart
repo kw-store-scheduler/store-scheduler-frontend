@@ -1,162 +1,202 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../core/api_service.dart';
+import '../../core/home_router.dart';
+import '../../core/push_service.dart';
+import '../../core/session.dart';
 import '../../core/theme.dart';
-import 'a04_phone_verification_page.dart';
-import 'dev_login_sheet.dart';
+import '../../models/user.dart';
+import '../../widgets/thyme_logo.dart';
+import 'a05_terms_agreement_page.dart';
 
-class LoginPage extends StatelessWidget {
-  const LoginPage({super.key});
+/// A03 로그인 · 회원가입 (아이디·비밀번호)
+///
+/// 백엔드는 아이디·비밀번호 로그인만 있다 (POST /api/auth/signup, /login). 카카오·네이버·Apple·휴대폰 로그인은 준비 중.
+/// - 로그인 → GET /api/users/me 로 첫 화면을 고른다 ([homeFor])
+/// - 회원가입 → 근로자로 가입하고 로그인 → A05 약관·알림 → A06 역할 선택 (역할은 A06에서 /me/role 로 확정)
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key, this.notice, this.startInSignup = false});
+
+  /// 로그인 화면으로 돌아온 이유 (예: 토큰 만료)
+  final String? notice;
+
+  /// A02 '시작하기'로 오면 회원가입, '이미 계정이 있어요'로 오면 로그인
+  final bool startInSignup;
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final _username = TextEditingController();
+  final _password = TextEditingController();
+  final _passwordConfirm = TextEditingController();
+  late bool _signup = widget.startInSignup;
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _error = widget.notice;
+  }
+
+  @override
+  void dispose() {
+    _username.dispose();
+    _password.dispose();
+    _passwordConfirm.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final username = _username.text.trim();
+    final password = _password.text;
+    if (username.isEmpty || password.isEmpty) {
+      setState(() => _error = "아이디와 비밀번호를 입력해 주세요.");
+      return;
+    }
+    if (_signup && password != _passwordConfirm.text) {
+      setState(() => _error = "비밀번호가 서로 달라요.");
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      // 가입은 근로자로 해 두고 A06에서 역할을 확정한다 (매장·합류 신청 전에는 /me/role 로 바꿀 수 있다)
+      if (_signup) await Session.instance.signup(username, password, Role.employee);
+      final me = await Session.instance.login(username, password);
+      await PushService.registerDevice();
+      if (!mounted) return;
+      if (_signup) {
+        resetTo(context, const TermsAgreementPage());
+      } else {
+        goHome(context, me);
+      }
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _toggleMode() => setState(() {
+        _signup = !_signup;
+        _error = null;
+      });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ThymeColor.bg,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 80),
-              
-              // 앱 로고
-              const Text(
-                "thyme.",
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w900,
-                  color: ThymeColor.text,
-                  letterSpacing: -1.0,
-                ),
-              ),
-              const SizedBox(height: 24),
-              
-              // 메인 카피
-              const Text(
-                "점주도, 근로자도\n같은 앱으로 시작해요",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: ThymeColor.text,
-                  height: 1.3,
-                ),
-              ),
-              const SizedBox(height: 12),
-              
-              // 서브 카피
-              Text(
-                "로그인한 다음 역할을 고를 수 있어요.",
-                style: TextStyle(
-                  fontSize: 15,
-                  color: ThymeColor.textSub,
-                ),
-              ),
-              
-              const Spacer(), // 버튼들을 하단으로 밀어냄
-              
-              // 소셜 로그인 버튼들
-              _buildLoginButton(
-                context,
-                text: "카카오로 계속하기",
-                backgroundColor: ThymeColor.kakaoYellow, // 카카오 옐로우
-                textColor: ThymeColor.kakaoLabel,
-              ),
-              const SizedBox(height: 12),
-              _buildLoginButton(
-                context,
-                text: "네이버로 계속하기",
-                backgroundColor: ThymeColor.naverGreen, // 네이버 그린
-                textColor: ThymeColor.onPrimary,
-              ),
-              const SizedBox(height: 12),
-              _buildLoginButton(
-                context,
-                text: "Apple로 계속하기",
-                backgroundColor: ThymeColor.appleBlack, // 애플 블랙
-                textColor: ThymeColor.onPrimary,
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // 구분선
-              Row(
-                children: [
-                  Expanded(child: Divider(color: ThymeColor.border)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text("또는", style: TextStyle(color: ThymeColor.textSub, fontSize: 13)),
-                  ),
-                  Expanded(child: Divider(color: ThymeColor.border)),
-                ],
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // 휴대폰 번호 로그인 (우리가 백엔드 연동 테스트할 찐 버튼)
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: BorderSide(color: ThymeColor.border),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  // A03 → A04 휴대폰 인증 (대타·근무표 알림 받을 번호)
-                  onPressed: () => _goPhoneVerification(context),
-                  child: const Text(
-                    "휴대폰 번호로 계속하기",
-                    style: TextStyle(color: ThymeColor.text, fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-              
-              // [개발용] 소셜 로그인이 백엔드에 생기기 전까지 실제 서버로 확인할 때만 (디버그 빌드 전용)
-              if (kDebugMode)
-                Center(
-                  child: TextButton(
-                    onPressed: () => showDevLoginSheet(context),
-                    child: const Text("개발용 ID 로그인", style: TextStyle(color: ThymeColor.textSub, fontSize: 13)),
-                  ),
-                )
-              else
-                const SizedBox(height: 24),
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 64),
 
-              // 하단 약관 안내
-              Center(
-                child: Text(
-                  "계속하면 이용약관과 개인정보 처리방침에 동의하게 돼요.",
-                  style: TextStyle(color: ThymeColor.disabled, fontSize: 12),
+                    // 앱 로고
+                    const ThymeLogo(size: 36, color: ThymeColor.text),
+                    const SizedBox(height: 24),
+
+                    // 메인 카피
+                    const Text(
+                      "점주도, 근로자도\n같은 앱으로 시작해요",
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: ThymeColor.text, height: 1.3),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 서브 카피
+                    Text(
+                      _signup ? "가입한 다음 역할(점주·근로자)을 골라요." : "로그인한 다음 역할을 고를 수 있어요.",
+                      style: const TextStyle(fontSize: 15, color: ThymeColor.textSub),
+                    ),
+
+                    const Spacer(),
+                    const SizedBox(height: 32),
+
+                    TextField(
+                      controller: _username,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.username],
+                      decoration: const InputDecoration(hintText: "아이디"),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _password,
+                      obscureText: true,
+                      textInputAction: _signup ? TextInputAction.next : TextInputAction.done,
+                      autofillHints: [_signup ? AutofillHints.newPassword : AutofillHints.password],
+                      decoration: const InputDecoration(hintText: "비밀번호"),
+                      onSubmitted: (_) => _signup ? null : _submit(),
+                    ),
+                    if (_signup) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _passwordConfirm,
+                        obscureText: true,
+                        textInputAction: TextInputAction.done,
+                        decoration: const InputDecoration(hintText: "비밀번호 확인"),
+                        onSubmitted: (_) => _submit(),
+                      ),
+                    ],
+                    if (_error != null) ...[
+                      const SizedBox(height: 12),
+                      Text(_error!, style: const TextStyle(fontSize: 13, color: ThymeColor.dangerText)),
+                    ],
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _loading ? null : _submit,
+                        child: Text(_loading ? "잠시만요…" : (_signup ? "가입하고 시작하기" : "로그인")),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: TextButton(
+                        onPressed: _loading ? null : _toggleMode,
+                        child: Text(
+                          _signup ? "이미 계정이 있어요 · 로그인" : "처음이에요 · 회원가입",
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.text),
+                        ),
+                      ),
+                    ),
+                    // 서버가 잠들어 있으면(무료 플랜) 첫 요청이 오래 걸린다
+                    if (_loading)
+                      const Center(
+                        child: Text("서버를 깨우는 중이면 30초~1분 걸릴 수 있어요.",
+                            style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
+                      ),
+                    const SizedBox(height: 16),
+
+                    // 소셜·휴대폰 로그인 (백엔드에 아직 없음)
+                    const Center(
+                      child: Text("카카오 · 네이버 · Apple · 휴대폰 로그인은 준비 중이에요.",
+                          style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Text(
+                        "계속하면 이용약관과 개인정보 처리방침에 동의하게 돼요.",
+                        style: TextStyle(color: ThymeColor.disabled, fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
-
-  // 소셜 로그인은 백엔드에 아직 없어서 시연에서는 모두 A04로 이어 간다
-  static void _goPhoneVerification(BuildContext context) =>
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const PhoneVerificationPage()));
-
-  // 로그인 버튼 공통 컴포넌트
-  Widget _buildLoginButton(BuildContext context, {required String text, required Color backgroundColor, required Color textColor}) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        onPressed: () => _goPhoneVerification(context),
-        child: Text(
-          text,
-          style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-      ),
-    );
-  }
-} 
+}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/thyme_back_button.dart';
 import '../../core/theme.dart';
 import 'w10_preference_report_page.dart';
 
@@ -12,10 +13,7 @@ class MySchedulePage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: ThymeColor.bg,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.text, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: ThymeBackButton(size: 20),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

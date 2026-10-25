@@ -25,6 +25,9 @@ class ApiService {
   /// 로그인하면 채워지는 JWT. 모든 요청에 `Authorization: Bearer` 로 붙는다.
   String? token;
 
+  /// 로그인한 상태에서 401(토큰 만료)이 오면 부른다. main.dart가 세션을 지우고 로그인 화면으로 보낸다
+  void Function()? onUnauthorized;
+
   /// 서버 주소. 빌드할 때 바꾼다: `flutter run --dart-define=API_BASE_URL=https://...`
   /// 지정하지 않으면 로컬 서버 (안드로이드 에뮬레이터는 PC의 localhost가 10.0.2.2)
   static String get baseUrl {
@@ -78,7 +81,10 @@ class ApiService {
     try {
       return (await request()).data;
     } on DioException catch (e) {
-      throw ApiException(_messageOf(e), statusCode: e.response?.statusCode);
+      final status = e.response?.statusCode;
+      // 로그인 중이 아닐 때의 401(잘못된 비밀번호 등)은 화면이 처리한다
+      if (status == 401 && token != null) onUnauthorized?.call();
+      throw ApiException(_messageOf(e), statusCode: status);
     }
   }
 

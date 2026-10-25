@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/home_router.dart';
 import '../../core/theme.dart';
 import '../../widgets/thyme_step_app_bar.dart';
 import 'h01_part_timer_home_page.dart'; // 홈 화면 찐 임포트!
@@ -94,11 +95,7 @@ class _FillVacancyPageState extends State<FillVacancyPage> {
                   ),
                   onPressed: () {
                     // 대타 요청 보내고 홈 화면으로 싹 날려버리기!
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const PartTimerHomePage()),
-                      (route) => false,
-                    );
+                    resetTo(context, const PartTimerHomePage());
                   },
                   child: Text(
                     _isDirectRequest ? "${_selectedCoworkers.length}명에게 대타 요청 보내기" : "게시판에 올리기",

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../widgets/thyme_back_button.dart';
+import '../../core/home_router.dart';
 import '../../core/theme.dart';
 import 'h01_part_timer_home_page.dart'; // 처리 후 얄짤없이 홈으로!
 
@@ -21,10 +23,7 @@ class _ShiftSwapPageState extends State<ShiftSwapPage> {
       appBar: AppBar(
         backgroundColor: ThymeColor.bg,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: ThymeColor.text),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: ThymeBackButton(),
         title: const Text("근무 바꾸기", style: TextStyle(color: ThymeColor.text, fontSize: 16, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
@@ -130,11 +129,7 @@ class _ShiftSwapPageState extends State<ShiftSwapPage> {
                   ),
                   onPressed: () {
                     // 요청 완료 후 홈 화면으로 이동
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const PartTimerHomePage()),
-                      (route) => false,
-                    );
+                    resetTo(context, const PartTimerHomePage());
                   },
                   child: Text(
                     _selectedCoworker != null ? "$_selectedCoworker님에게 맞교환 요청" : "대상을 선택해주세요",

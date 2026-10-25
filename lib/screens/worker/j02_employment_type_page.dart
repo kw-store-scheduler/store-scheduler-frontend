@@ -3,12 +3,13 @@ import '../../core/theme.dart';
 import '../../widgets/thyme_step_app_bar.dart';
 import 'j03_join_profile_page.dart';
 
+/// J02 직원 / 알바 (가입 2/3). 형태에 따라 희망 신청 단계와 홈이 달라진다
 class EmploymentTypePage extends StatefulWidget {
-  const EmploymentTypePage({super.key, this.storeCode, this.storeName});
+  const EmploymentTypePage({super.key, required this.storeCode, required this.storeName});
 
-  /// J01에서 찾은 매장 (시연 중이면 null)
-  final String? storeCode;
-  final String? storeName;
+  /// J01에서 찾은 매장
+  final String storeCode;
+  final String storeName;
 
   @override
   State<EmploymentTypePage> createState() => _EmploymentTypePageState();

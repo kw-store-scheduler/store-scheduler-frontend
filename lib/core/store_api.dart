@@ -57,10 +57,36 @@ class StoreApi {
   Future<List<ShiftInfo>> shifts() async =>
       [for (final j in await _api.get('$_store/shifts') as List) ShiftInfo.fromJson(j as Map<String, dynamic>)];
 
-  /// O03: 교대 하나의 요일별 최소 인원을 통째로 바꾼다 ([minStaff]는 월~일 7칸)
+  /// O03: 교대 추가 (요일을 비우면 매일)
+  Future<ShiftInfo> addShift({required String name, required String startTime, required String endTime, int requiredStaff = 1}) async =>
+      ShiftInfo.fromJson(await _api.post('$_store/shifts', data: {
+        'name': name,
+        'startTime': startTime,
+        'endTime': endTime,
+        'requiredStaff': requiredStaff,
+      }) as Map<String, dynamic>);
+
+  /// O03: 교대 이름·시간 수정. 서버가 전체를 바꾸므로 기본 인원·요일도 그대로 보낸다
+  Future<ShiftInfo> updateShift(ShiftInfo shift, {required String name, required String startTime, required String endTime}) async =>
+      ShiftInfo.fromJson(await _api.put('$_store/shifts/${shift.id}', data: {
+        'name': name,
+        'startTime': startTime,
+        'endTime': endTime,
+        'requiredStaff': shift.requiredStaff,
+        'dayOfWeek': ?shift.dayOfWeek,
+      }) as Map<String, dynamic>);
+
+  /// O03: 교대 삭제 (마감 보고가 있으면 서버가 거절)
+  Future<void> deleteShift(int shiftId) => _api.delete('$_store/shifts/$shiftId');
+
+  /// O03: 교대 하나의 요일별 최소·목표 인원을 통째로 바꾼다 ([minStaff]는 월~일 7칸, 목표는 최소 +1)
   Future<void> replaceDayStaffing(int shiftId, List<int> minStaff) => _api.put('$_store/shifts/$shiftId/day-staffing', data: [
-        for (var i = 0; i < 7; i++) {'dayOfWeek': weekdayNames[i], 'minStaff': minStaff[i]},
+        for (var i = 0; i < 7; i++)
+          {'dayOfWeek': weekdayNames[i], 'minStaff': minStaff[i], 'targetStaff': minStaff[i] == 0 ? 0 : minStaff[i] + 1},
       ]);
+
+  /// O02: 다음 근무표 기간·희망 마감·자동 생성 시각 (매장 주기에 따라 서버가 계산)
+  Future<SchedulePlan> plan() async => SchedulePlan.fromJson(await _api.get('$_store/schedules/plan') as Map<String, dynamic>);
 
   /// O06: 기간 안의 예외일
   Future<List<StaffingException>> exceptions(DateTime from, DateTime to) async => [
@@ -70,6 +96,8 @@ class StoreApi {
 
   Future<StaffingException> addException(StaffingException e) async =>
       StaffingException.fromJson(await _api.post('$_store/staffing-exceptions', data: e.toJson()) as Map<String, dynamic>);
+
+  Future<void> deleteException(int id) => _api.delete('$_store/staffing-exceptions/$id');
 
   /// O06: 공휴일 (서버에 2026·2027년만 있음)
   Future<Map<DateTime, String>> holidays(int year) async => {
@@ -87,4 +115,10 @@ class StoreApi {
 
   Future<SkillWindow> addSkillWindow(SkillWindow w) async =>
       SkillWindow.fromJson(await _api.post('$_store/skill-windows', data: w.toJson()) as Map<String, dynamic>);
+
+  Future<void> deleteSkillWindow(int id) => _api.delete('$_store/skill-windows/$id');
+
+  /// O04 Q1: 직원 × 역량 등급 (합류한 직원이 없으면 빈 목록)
+  Future<List<SkillMatrixRow>> skillMatrix() async =>
+      [for (final j in await _api.get('$_store/skill-matrix') as List) SkillMatrixRow.fromJson(j as Map<String, dynamic>)];
 }
