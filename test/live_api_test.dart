@@ -55,7 +55,8 @@ void main() {
   int? storeId;
 
   /// 실제 네트워크를 기다리며 조건이 될 때까지 화면을 갱신한다
-  Future<void> settle(WidgetTester tester, {bool Function()? until, int maxTries = 50}) async {
+  // 조건을 기다리는 최대 시간 ≈ maxTries × 0.15초 (원격 무료 서버는 요청 하나에 수 초~1분이 걸린다)
+  Future<void> settle(WidgetTester tester, {bool Function()? until, int maxTries = 600}) async {
     for (var i = 0; i < maxTries; i++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
       await tester.pump(const Duration(milliseconds: 50));
