@@ -14,6 +14,15 @@ import 'package:thyme_frontend/core/session.dart';
 import 'package:thyme_frontend/screens/common/a02_service_intro_page.dart';
 import 'package:thyme_frontend/screens/common/a05_terms_agreement_page.dart';
 import 'package:thyme_frontend/screens/common/a06_role_selection_page.dart';
+import 'package:thyme_frontend/screens/owner/m01_worker_approval_page.dart';
+import 'package:thyme_frontend/screens/owner/m02_labor_cost_page.dart';
+import 'package:thyme_frontend/screens/owner/m05_proposal_compare_page.dart';
+import 'package:thyme_frontend/screens/owner/owner_schedule_page.dart';
+import 'package:thyme_frontend/screens/owner/p01_owner_home_page.dart';
+import 'package:thyme_frontend/screens/owner/p04_share_complete_page.dart';
+import 'package:thyme_frontend/screens/owner/p06_substitute_manage_page.dart';
+import 'package:thyme_frontend/screens/owner/p08_store_settings_page.dart';
+import 'package:thyme_frontend/screens/owner/p09_open_shift_post_page.dart';
 import 'package:thyme_frontend/screens/owner/o02_schedule_cycle_page.dart';
 import 'package:thyme_frontend/screens/owner/o03_store_shift_setup_page.dart';
 import 'package:thyme_frontend/screens/owner/o04_curation_page.dart';
@@ -282,6 +291,82 @@ void main() {
     expect(mine['submitted'], true);
     final attitudes = (mine['submission'] as Map)['shiftAttitudes'] as Map;
     expect(attitudes.values, contains('PREFER'));
+    await finish(tester);
+  }, skip: _server == null);
+
+  testWidgets('점주 운영: P01 → M01 승인 → 근무표 탭 → P03 → M05 확정 → P04 → 대타 → 인건비 → 매장 → + 기록', (tester) async {
+    expect(storeCode, isNotNull, reason: '점주 테스트가 먼저 매장을 만들어야 한다');
+    final part = 'part$stamp';
+    // 두 번째 근로자(알바)가 가입 신청 (API)
+    await tester.runAsync(() async {
+      final dio = Dio(BaseOptions(baseUrl: _server!));
+      await dio.post('/api/auth/signup', data: {'username': part, 'password': password, 'role': 'EMPLOYEE'});
+      final token = (await dio.post('/api/auth/login', data: {'username': part, 'password': password})).data['token'];
+      dio.options.headers['Authorization'] = 'Bearer $token';
+      await dio.post('/api/stores/join/$storeCode', data: {'name': '박유나', 'nickname': '유나', 'employmentType': 'PART_TIME'});
+    });
+    await tester.runAsync(() => Session.instance.login(owner, password));
+    Session.instance.storeId = storeId;
+    Finder tab(String label) => find.descendant(of: find.byType(BottomNavigationBar), matching: find.text(label));
+    Finder back() => find.byIcon(Icons.arrow_back_ios).last;
+
+    // P01: 서버 홈 (매장 이름 · 승인할 것)
+    await pumpScreen(tester, const OwnerHomePage());
+    await settle(tester, until: () => find.textContaining('승인할 것 1').evaluate().isNotEmpty);
+    expect(find.textContaining('테스트 카페 $stamp'), findsOneWidget);
+
+    // M01: 가입 승인 (시급 시트)
+    await tap(tester, find.textContaining('승인할 것 1'), until: () => shows(WorkerApprovalPage) && has('유나 (박유나)'));
+    await tap(tester, find.text('승인'), until: () => has('시급 ₩10,320로 승인'));
+    await tap(tester, find.text('시급 ₩10,320로 승인'), until: () => find.textContaining('새 가입 요청이 없어요').evaluate().isNotEmpty);
+    await tap(tester, back(), until: () => has('승인할 것이 없어요'));
+
+    // 근무표 탭 → 근무표 만들기(P03) → M05 3안
+    await tap(tester, tab('근무표'), until: () => shows(OwnerSchedulePage) && has('근무표 만들기'));
+    await tap(tester, find.text('근무표 만들기'), until: () => shows(ProposalComparePage));
+    expect(find.textContaining('안 · '), findsWidgets);
+    await tap(tester, find.textContaining('안으로 확정'), until: () => shows(ShareCompletePage) && find.textContaining('명에게 보냈어요').evaluate().isNotEmpty);
+    expect(find.text('누가 확인했나요'), findsOneWidget);
+    final schedules = await liveGet(tester, '/api/stores/$storeId/schedules') as List;
+    expect(schedules, isNotEmpty);
+    await tap(tester, find.text('근무표 보기'), until: () => shows(OwnerSchedulePage) && has('근무표 만들기'));
+
+    // 직원(staff)이 결원 신고 (API) → 대타 탭
+    await tester.runAsync(() async {
+      final dio = Dio(BaseOptions(baseUrl: _server!));
+      final token = (await dio.post('/api/auth/login', data: {'username': staff, 'password': password})).data['token'];
+      dio.options.headers['Authorization'] = 'Bearer $token';
+      final mine = (await dio.get('/api/stores/$storeId/schedules/my')).data as List;
+      await dio.post('/api/stores/$storeId/schedules/${mine.first['id']}/swap-requests', data: {'reasonCategory': 'PERSONAL', 'reason': '개인 사정'});
+    });
+    await tap(tester, tab('대타'), until: () => shows(SubstituteManagePage) && has('엔진이 고른 후보'));
+    await settle(tester, until: () => has('빈 근무로 올리기'));
+    expect(find.text('결원'), findsOneWidget);
+    await tap(tester, find.text('빈 근무로 올리기'), until: () => shows(OpenShiftPostPage) && has('빈 근무 올리기'));
+    await tap(tester, back(), until: () => !shows(OpenShiftPostPage));
+    final board = await liveGet(tester, '/api/stores/$storeId/open-shifts') as Map;
+    expect(board['items'], isNotEmpty);
+
+    // 인건비 탭
+    await tap(tester, tab('인건비'), until: () => shows(LaborCostPage) && has('직원별 시급 · 시간'));
+    expect(find.textContaining('확정 근무표 기준'), findsOneWidget);
+
+    // 매장 탭: 매장 정보 · 업종 · 주기 → 근무표 주기(수정 모드) → 완료
+    await tap(tester, tab('매장'), until: () => shows(StoreSettingsPage) && has('매장 정보 · 업종 · 주기'));
+    await tap(tester, find.text('매장 정보 · 업종 · 주기'), until: () => has('근무표 주기'));
+    // 서버 값을 받기 전엔 '완료'가 꺼져 있다
+    await tap(tester, find.text('근무표 주기'), until: () => has('완료') && find.textContaining('생성 3일 전').evaluate().isNotEmpty);
+    await tap(tester, find.text('완료'), until: () => has('교대 시간대 · 인원'));
+    await tap(tester, find.text('교대 시간대 · 인원'), until: () => has('저장') && has('09:00–14:30'));
+    await tap(tester, back(), until: () => has('리테일 큐레이션'));
+
+    // 홈 탭: + 기록 (객수 42)
+    await tap(tester, tab('홈'), until: () => shows(OwnerHomePage) && has('+ 기록'));
+    await tap(tester, find.text('+ 기록'), until: () => has('오늘 입객 기록'));
+    await settle(tester, until: () => find.byType(ChoiceChip).evaluate().isNotEmpty);
+    await tester.enterText(find.byType(TextField).first, '42');
+    await tap(tester, find.text('기록'), until: () => has('오늘 1건'));
+    expect(find.text('42'), findsOneWidget);
     await finish(tester);
   }, skip: _server == null);
 }

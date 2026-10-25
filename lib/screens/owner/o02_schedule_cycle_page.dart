@@ -10,7 +10,10 @@ import 'o03_store_shift_setup_page.dart';
 /// O02 근무표 주기 (매장 등록 2/6). 고르는 즉시 PATCH /settings 로 저장하고
 /// GET /schedules/plan 으로 서버가 계산한 적용 시작·희망 마감·자동 생성 시각을 보여 준다
 class ScheduleCyclePage extends StatefulWidget {
-  const ScheduleCyclePage({super.key});
+  const ScheduleCyclePage({super.key, this.editing = false});
+
+  /// 매장 설정(P08)에서 고칠 때: 진행바 대신 제목, '다음' 대신 저장 후 돌아가기
+  final bool editing;
 
   @override
   State<ScheduleCyclePage> createState() => _ScheduleCyclePageState();
@@ -90,7 +93,7 @@ class _ScheduleCyclePageState extends State<ScheduleCyclePage> {
     final plan = _plan;
     return Scaffold(
       backgroundColor: ThymeColor.bg,
-      appBar: const ThymeStepAppBar(step: 2, total: 6, group: '매장 등록', owner: true),
+      appBar: widget.editing ? thymeEditAppBar('근무표 주기') : const ThymeStepAppBar(step: 2, total: 6, group: '매장 등록', owner: true),
       body: Column(
         children: [
           Expanded(
@@ -154,10 +157,13 @@ class _ScheduleCyclePageState extends State<ScheduleCyclePage> {
               child: SizedBox(
                 width: double.infinity,
                 child: FilledButton(
+                  // 주기는 고르는 즉시 저장된다
                   onPressed: _cycle == null || _saving
                       ? null
-                      : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StoreShiftSetupPage())),
-                  child: Text(_saving ? "저장 중…" : "다음"),
+                      : widget.editing
+                          ? () => Navigator.pop(context)
+                          : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StoreShiftSetupPage())),
+                  child: Text(_saving ? "저장 중…" : (widget.editing ? "완료" : "다음")),
                 ),
               ),
             ),

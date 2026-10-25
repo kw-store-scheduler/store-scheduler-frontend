@@ -13,7 +13,10 @@ import 'o06_exception_days_page.dart';
 /// O03 교대와 요일별 인원 (매장 등록 3/6).
 /// 교대 = GET /shifts (업종 기본 교대). 추가·삭제는 바로 서버에, 이름·시간·요일별 인원은 '다음'에서 한꺼번에 저장한다.
 class StoreShiftSetupPage extends StatefulWidget {
-  const StoreShiftSetupPage({super.key});
+  const StoreShiftSetupPage({super.key, this.editing = false});
+
+  /// 매장 설정(P08)에서 고칠 때: 진행바 대신 제목, '다음' 대신 저장 후 돌아가기
+  final bool editing;
 
   @override
   State<StoreShiftSetupPage> createState() => _StoreShiftSetupPageState();
@@ -156,6 +159,11 @@ class _StoreShiftSetupPageState extends State<StoreShiftSetupPage> {
       final fresh = await api.shifts();
       if (!mounted) return;
       setState(() => _rows = [for (final s in fresh) _Row(s)]);
+      if (widget.editing) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("저장했어요. 다음 근무표부터 반영돼요.")));
+        Navigator.pop(context);
+        return;
+      }
       Navigator.push(context, MaterialPageRoute(builder: (_) => const ExceptionDaysPage()));
     } on ApiException catch (e) {
       if (mounted) _toast(e.message);
@@ -169,7 +177,7 @@ class _StoreShiftSetupPageState extends State<StoreShiftSetupPage> {
     final rows = _rows;
     return Scaffold(
       backgroundColor: ThymeColor.bg,
-      appBar: const ThymeStepAppBar(step: 3, total: 6, group: '매장 등록', owner: true),
+      appBar: widget.editing ? thymeEditAppBar('교대 시간대 · 인원') : const ThymeStepAppBar(step: 3, total: 6, group: '매장 등록', owner: true),
       body: Column(
         children: [
           Expanded(
@@ -205,7 +213,7 @@ class _StoreShiftSetupPageState extends State<StoreShiftSetupPage> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: rows == null || _saving ? null : _next,
-                  child: Text(_saving ? "저장 중…" : "다음 · 예외일"),
+                  child: Text(_saving ? "저장 중…" : (widget.editing ? "저장" : "다음 · 예외일")),
                 ),
               ),
             ),

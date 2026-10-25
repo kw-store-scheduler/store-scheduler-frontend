@@ -14,7 +14,10 @@ import 'o05_labor_law_page.dart';
 /// Q2 시간대별 필요 역량 = GET·POST·DELETE /skill-windows → M03 역량 매칭과 근무표 엔진의 필수/우선 조건
 /// Q3 입객 데이터 = 마감 보고 객수 → 다음 달 인원 제안 (설정할 것이 없어 안내만)
 class CurationPage extends StatefulWidget {
-  const CurationPage({super.key});
+  const CurationPage({super.key, this.editing = false});
+
+  /// 매장 설정(P08)에서 고칠 때: 진행바 대신 제목, '다음' 대신 저장 후 돌아가기
+  final bool editing;
 
   @override
   State<CurationPage> createState() => _CurationPageState();
@@ -105,14 +108,15 @@ class _CurationPageState extends State<CurationPage> {
     }
   }
 
-  void _next() => Navigator.push(context, MaterialPageRoute(builder: (_) => const LaborLawPage()));
+  // 조건은 추가·삭제할 때마다 바로 저장된다
+  void _next() => widget.editing ? Navigator.pop(context) : Navigator.push(context, MaterialPageRoute(builder: (_) => const LaborLawPage()));
 
   @override
   Widget build(BuildContext context) {
     final skills = _skills;
     return Scaffold(
       backgroundColor: ThymeColor.bg,
-      appBar: ThymeStepAppBar(step: 5, total: 6, group: '매장 등록', owner: true, actions: [
+      appBar: widget.editing ? thymeEditAppBar('리테일 큐레이션') : ThymeStepAppBar(step: 5, total: 6, group: '매장 등록', owner: true, actions: [
         TextButton(onPressed: _next, child: const Text("건너뛰기", style: TextStyle(color: ThymeColor.textSub, fontWeight: FontWeight.bold))),
       ]),
       body: Column(
@@ -162,7 +166,7 @@ class _CurationPageState extends State<CurationPage> {
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: SizedBox(width: double.infinity, child: FilledButton(onPressed: _next, child: const Text("다음"))),
+              child: SizedBox(width: double.infinity, child: FilledButton(onPressed: _next, child: Text(widget.editing ? "완료" : "다음"))),
             ),
           ),
         ],

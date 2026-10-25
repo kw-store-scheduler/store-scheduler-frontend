@@ -14,6 +14,9 @@ import 'package:thyme_frontend/screens/owner/p03_generating_schedule_page.dart';
 import 'package:thyme_frontend/screens/owner/o05_labor_law_page.dart';
 import 'package:thyme_frontend/screens/owner/p01_owner_home_page.dart';
 import 'package:thyme_frontend/screens/owner/m05_proposal_compare_page.dart';
+import 'package:thyme_frontend/screens/owner/m02_labor_cost_page.dart';
+import 'package:thyme_frontend/screens/owner/owner_schedule_page.dart';
+import 'package:thyme_frontend/models/owner.dart';
 import 'package:thyme_frontend/screens/owner/p02_registration_complete_page.dart';
 import 'package:thyme_frontend/screens/owner/o02_schedule_cycle_page.dart';
 import 'package:thyme_frontend/screens/owner/p04_share_complete_page.dart';
@@ -61,6 +64,25 @@ PreferenceDraft _draft() {
 }
 
 /// 모든 화면이 예외(레이아웃 오버플로 포함) 없이 그려지는지 확인하는 스모크 테스트
+/// M05·P04 화면용 후보안 (서버 응답과 같은 모양)
+Proposal _proposal() => Proposal.fromJson({
+      'proposalId': 1,
+      'success': true,
+      'weekStart': '2026-12-01',
+      'periodEnd': '2026-12-31',
+      'solveMs': 2700,
+      'candidates': [
+        for (final (i, label) in [(0, '공정 우선'), (1, '인건비 우선'), (2, '희망 우선')])
+          {
+            'index': i,
+            'label': label,
+            'estimatedCost': 7208928 - i * 100000,
+            'metrics': {'preferenceRate': 98.8, 'weekendGap': 1 + i, 'laborLawViolations': 0, 'minStaffCoverage': 100.0, 'warnings': []},
+            'assignments': [],
+          },
+      ],
+    });
+
 void main() {
   setUpAll(loadTestFonts);
 
@@ -76,15 +98,17 @@ void main() {
     'GeneratingSchedulePage': () => const GeneratingSchedulePage(),
     'LaborLawPage': () => const LaborLawPage(),
     'OwnerHomePage': () => const OwnerHomePage(),
-    'ProposalComparePage': () => const ProposalComparePage(),
+    'ProposalComparePage': () => ProposalComparePage(proposal: _proposal()),
     'RegistrationCompletePage': () => const RegistrationCompletePage(),
     'ScheduleCyclePage': () => const ScheduleCyclePage(),
-    'ShareCompletePage': () => const ShareCompletePage(),
+    'ShareCompletePage': () => ShareCompletePage(proposalId: 1, letter: 'A', period: '12월', candidate: _proposal().candidates.first),
     'StoreRegistrationPage': () => const StoreRegistrationPage(),
     'StoreShiftSetupPage': () => const StoreShiftSetupPage(),
     'WorkerApprovalPage': () => const WorkerApprovalPage(),
     'WorkerListPage': () => const WorkerListPage(),
-    'WorkerProfileConfirmPage': () => const WorkerProfileConfirmPage(),
+    'WorkerProfileConfirmPage': () => const WorkerProfileConfirmPage(employeeId: 1),
+    'LaborCostPage': () => const LaborCostPage(),
+    'OwnerSchedulePage': () => const OwnerSchedulePage(),
     'AbsenceReportPage': () => const AbsenceReportPage(),
     'ApprovalWaitingPage': () => const ApprovalWaitingPage(fullTime: false, name: '유나', storeName: '테스트 카페'),
     'CoverAcceptPage': () => const CoverAcceptPage(),

@@ -9,12 +9,12 @@ import '../../widgets/thyme_step_app_bar.dart';
 import 'o04_curation_page.dart';
 
 IconData _iconOf(ExceptionCategory c) => switch (c) {
-      ExceptionCategory.delivery => Icons.inventory_2_outlined,
-      ExceptionCategory.sale => Icons.sell_outlined,
-      ExceptionCategory.season => Icons.star_outline,
-      ExceptionCategory.holidayEve => Icons.calendar_today_outlined,
-      ExceptionCategory.other => Icons.label_outline,
-    };
+  ExceptionCategory.delivery => Icons.inventory_2_outlined,
+  ExceptionCategory.sale => Icons.sell_outlined,
+  ExceptionCategory.season => Icons.star_outline,
+  ExceptionCategory.holidayEve => Icons.calendar_today_outlined,
+  ExceptionCategory.other => Icons.label_outline,
+};
 
 String _md(DateTime d) => "${d.month}/${d.day}";
 
@@ -46,7 +46,10 @@ String _detail(StaffingException e) {
 /// O06 평소와 다른 날 (매장 등록 4/6). 입고일·행사·명절처럼 인원이 달라지는 날만 적는다.
 /// 달력의 날짜를 누르면 그날 예외일을 보거나 추가한다. GET·POST·DELETE /staffing-exceptions, GET /holidays
 class ExceptionDaysPage extends StatefulWidget {
-  const ExceptionDaysPage({super.key});
+  const ExceptionDaysPage({super.key, this.editing = false});
+
+  /// 매장 설정(P08)에서 고칠 때: 진행바 대신 제목, '다음' 대신 저장 후 돌아가기
+  final bool editing;
 
   @override
   State<ExceptionDaysPage> createState() => _ExceptionDaysPageState();
@@ -124,7 +127,10 @@ class _ExceptionDaysPageState extends State<ExceptionDaysPage> {
 
   /// 날짜를 누르면: 예외일이 있으면 그날 목록(삭제·추가), 없으면 바로 추가
   Future<void> _tapDay(DateTime d) async {
-    final onDay = [for (final e in _items ?? <StaffingException>[]) if (e.covers(d)) e];
+    final onDay = [
+      for (final e in _items ?? <StaffingException>[])
+        if (e.covers(d)) e,
+    ];
     if (onDay.isEmpty) return _add(d);
     final action = await showModalBottomSheet<Object>(
       context: context,
@@ -137,8 +143,10 @@ class _ExceptionDaysPageState extends State<ExceptionDaysPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("${d.month}월 ${d.day}일 (${weekdayLabels[d.weekday - 1]})${_holidays[d] == null ? "" : " · ${_holidays[d]}"}",
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+              Text(
+                "${d.month}월 ${d.day}일 (${weekdayLabels[d.weekday - 1]})${_holidays[d] == null ? "" : " · ${_holidays[d]}"}",
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: ThymeColor.text),
+              ),
               const SizedBox(height: 8),
               for (final e in onDay)
                 ListTile(
@@ -167,21 +175,30 @@ class _ExceptionDaysPageState extends State<ExceptionDaysPage> {
     if (action is StaffingException) return _delete(action);
   }
 
-  void _next() => Navigator.push(context, MaterialPageRoute(builder: (_) => const CurationPage()));
+  // 예외일은 추가·삭제할 때마다 바로 저장된다
+  void _next() => widget.editing ? Navigator.pop(context) : Navigator.push(context, MaterialPageRoute(builder: (_) => const CurationPage()));
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ThymeColor.bg,
-      appBar: ThymeStepAppBar(
-        step: 4,
-        total: 6,
-        group: '매장 등록',
-        owner: true,
-        actions: [
-          TextButton(onPressed: _next, child: const Text("건너뛰기", style: TextStyle(color: ThymeColor.textSub, fontWeight: FontWeight.bold))),
-        ],
-      ),
+      appBar: widget.editing
+          ? thymeEditAppBar('평소와 다른 날')
+          : ThymeStepAppBar(
+              step: 4,
+              total: 6,
+              group: '매장 등록',
+              owner: true,
+              actions: [
+                TextButton(
+                  onPressed: _next,
+                  child: const Text(
+                    "건너뛰기",
+                    style: TextStyle(color: ThymeColor.textSub, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
       body: Column(
         children: [
           Expanded(
@@ -190,10 +207,15 @@ class _ExceptionDaysPageState extends State<ExceptionDaysPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("평소와 다른 날", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+                  const Text(
+                    "평소와 다른 날",
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: ThymeColor.text),
+                  ),
                   const SizedBox(height: 10),
-                  const Text("입고일·행사·명절처럼 인원이 달라지는 날만 적어요.\n나머지는 요일 템플릿대로예요.",
-                      style: TextStyle(fontSize: 15, color: ThymeColor.textSub, height: 1.5)),
+                  const Text(
+                    "입고일·행사·명절처럼 인원이 달라지는 날만 적어요.\n나머지는 요일 템플릿대로예요.",
+                    style: TextStyle(fontSize: 15, color: ThymeColor.textSub, height: 1.5),
+                  ),
                   const SizedBox(height: 20),
                   _calendar(),
                   const SizedBox(height: 12),
@@ -202,10 +224,13 @@ class _ExceptionDaysPageState extends State<ExceptionDaysPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(color: ThymeColor.dangerBg, borderRadius: BorderRadius.circular(16)),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(_error!, style: const TextStyle(color: ThymeColor.dangerText)),
-                        TextButton(onPressed: _load, child: const Text("다시 불러오기")),
-                      ]),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(_error!, style: const TextStyle(color: ThymeColor.dangerText)),
+                          TextButton(onPressed: _load, child: const Text("다시 불러오기")),
+                        ],
+                      ),
                     )
                   else
                     _list(),
@@ -214,8 +239,10 @@ class _ExceptionDaysPageState extends State<ExceptionDaysPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(color: ThymeColor.infoBg, borderRadius: BorderRadius.circular(16)),
-                    child: const Text("매주 반복되는 일(입고일 발주 등)은 다음 단계 '필요한 역량'에서 시간대로 정해요.",
-                        style: TextStyle(fontSize: 13, color: ThymeColor.infoText, height: 1.5)),
+                    child: const Text(
+                      "매주 반복되는 일(입고일 발주 등)은 다음 단계 '필요한 역량'에서 시간대로 정해요.",
+                      style: TextStyle(fontSize: 13, color: ThymeColor.infoText, height: 1.5),
+                    ),
                   ),
                 ],
               ),
@@ -225,7 +252,10 @@ class _ExceptionDaysPageState extends State<ExceptionDaysPage> {
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: SizedBox(width: double.infinity, child: FilledButton(onPressed: _next, child: const Text("다음 · 필요한 역량"))),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(onPressed: _next, child: Text(widget.editing ? "완료" : "다음 · 필요한 역량")),
+              ),
             ),
           ),
         ],
@@ -245,23 +275,53 @@ class _ExceptionDaysPageState extends State<ExceptionDaysPage> {
       decoration: BoxDecoration(color: ThymeColor.surface, borderRadius: BorderRadius.circular(20)),
       child: Column(
         children: [
-          Row(children: [
-            IconButton(visualDensity: VisualDensity.compact, tooltip: "이전 달", onPressed: canBack ? () => _moveMonth(-1) : null, icon: const Icon(Icons.chevron_left)),
-            Text("${_month.year}. ${_month.month}", style: ThymeTheme.mono(context, size: 17)),
-            IconButton(visualDensity: VisualDensity.compact, tooltip: "다음 달", onPressed: canForward ? () => _moveMonth(1) : null, icon: const Icon(Icons.chevron_right)),
-            const Expanded(
-              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                Icon(Icons.circle, size: 6, color: ThymeColor.textSub),
-                SizedBox(width: 4),
-                Flexible(child: Text("예외일 · 공휴일 자동", overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: ThymeColor.textSub))),
-              ]),
-            ),
-          ]),
+          Row(
+            children: [
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: "이전 달",
+                onPressed: canBack ? () => _moveMonth(-1) : null,
+                icon: const Icon(Icons.chevron_left),
+              ),
+              Text("${_month.year}. ${_month.month}", style: ThymeTheme.mono(context, size: 17)),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: "다음 달",
+                onPressed: canForward ? () => _moveMonth(1) : null,
+                icon: const Icon(Icons.chevron_right),
+              ),
+              const Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Icon(Icons.circle, size: 6, color: ThymeColor.textSub),
+                    SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        "예외일 · 공휴일 자동",
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: ThymeColor.textSub),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 4),
-          Row(children: [
-            for (final w in weekdays)
-              Expanded(child: Center(child: Text(w, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ThymeColor.forWeekday(w))))),
-          ]),
+          Row(
+            children: [
+              for (final w in weekdays)
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      w,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ThymeColor.forWeekday(w)),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 6),
           GridView.count(
             crossAxisCount: 7,
@@ -270,10 +330,7 @@ class _ExceptionDaysPageState extends State<ExceptionDaysPage> {
             mainAxisSpacing: 4,
             crossAxisSpacing: 4,
             childAspectRatio: 1.1,
-            children: [
-              for (var i = 0; i < lead; i++) const SizedBox(),
-              for (var d = 1; d <= days; d++) _day(DateTime(_month.year, _month.month, d)),
-            ],
+            children: [for (var i = 0; i < lead; i++) const SizedBox(), for (var d = 1; d <= days; d++) _day(DateTime(_month.year, _month.month, d))],
           ),
           const SizedBox(height: 4),
           const Text("날짜를 누르면 그날 예외일을 추가해요", style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
@@ -328,22 +385,29 @@ class _ExceptionDaysPageState extends State<ExceptionDaysPage> {
               onTap: () => _tapDay(e.date),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Row(children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                          Text(_when(e), style: ThymeTheme.mono(context, size: 16)),
-                          _kindChip(e.category),
-                        ]),
-                        const SizedBox(height: 6),
-                        Text(_detail(e), style: const TextStyle(fontSize: 14, color: ThymeColor.textSub)),
-                      ],
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(_when(e), style: ThymeTheme.mono(context, size: 16)),
+                              _kindChip(e.category),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(_detail(e), style: const TextStyle(fontSize: 14, color: ThymeColor.textSub)),
+                        ],
+                      ),
                     ),
-                  ),
-                  Text(_change(e), style: ThymeTheme.mono(context, size: 17)),
-                ]),
+                    Text(_change(e), style: ThymeTheme.mono(context, size: 17)),
+                  ],
+                ),
               ),
             ),
             const Divider(height: 1),
@@ -352,9 +416,14 @@ class _ExceptionDaysPageState extends State<ExceptionDaysPage> {
             onTap: items == null ? null : () => _add(),
             child: const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
-              child: Row(children: [
-                Text("+ 예외일 추가", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-              ]),
+              child: Row(
+                children: [
+                  Text(
+                    "+ 예외일 추가",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -365,14 +434,20 @@ class _ExceptionDaysPageState extends State<ExceptionDaysPage> {
 
 // 분류 칩 = 라벤더 틴트 + 차콜 글자 + 선 아이콘 (가이드 1-1)
 Widget _kindChip(ExceptionCategory c) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: ThymeColor.selectedSoft, borderRadius: BorderRadius.circular(99)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(_iconOf(c), size: 14, color: ThymeColor.charcoal),
-        const SizedBox(width: 4),
-        Text(c.label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ThymeColor.charcoal)),
-      ]),
-    );
+  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+  decoration: BoxDecoration(color: ThymeColor.selectedSoft, borderRadius: BorderRadius.circular(99)),
+  child: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(_iconOf(c), size: 14, color: ThymeColor.charcoal),
+      const SizedBox(width: 4),
+      Text(
+        c.label,
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ThymeColor.charcoal),
+      ),
+    ],
+  ),
+);
 
 enum _Kind { delta, closed, time }
 
@@ -432,21 +507,27 @@ class _AddExceptionSheetState extends State<_AddExceptionSheet> {
       context: context,
       backgroundColor: ThymeColor.surface,
       builder: (context) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          SizedBox(
-            height: 200,
-            child: CupertinoPicker(
-              itemExtent: 36,
-              scrollController: FixedExtentScrollController(initialItem: value ~/ 30),
-              onSelectedItemChanged: (i) => value = i * 30,
-              children: [for (var i = 0; i < 48; i++) Center(child: Text(_fmt(i * 30), style: ThymeTheme.mono(context, size: 18)))],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: 200,
+              child: CupertinoPicker(
+                itemExtent: 36,
+                scrollController: FixedExtentScrollController(initialItem: value ~/ 30),
+                onSelectedItemChanged: (i) => value = i * 30,
+                children: [for (var i = 0; i < 48; i++) Center(child: Text(_fmt(i * 30), style: ThymeTheme.mono(context, size: 18)))],
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(context, value), child: const Text("확인"))),
-          ),
-        ]),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(onPressed: () => Navigator.pop(context, value), child: const Text("확인")),
+              ),
+            ),
+          ],
+        ),
       ),
     );
     if (picked != null) setState(() => start ? _startOverride = picked : _endOverride = picked);
@@ -455,31 +536,34 @@ class _AddExceptionSheetState extends State<_AddExceptionSheet> {
   bool get _valid => _kind != _Kind.time || (_shift != null && (_startOverride != null || _endOverride != null));
 
   StaffingException _result() => StaffingException(
-        date: _start,
-        endDate: _start == _end ? null : _end,
-        shiftId: _shift?.id,
-        category: _category,
-        deltaStaff: _kind == _Kind.delta ? _delta : null,
-        minStaff: _kind == _Kind.closed ? 0 : null,
-        startTimeOverride: _kind == _Kind.time && _startOverride != null ? _fmt(_startOverride!) : null,
-        endTimeOverride: _kind == _Kind.time && _endOverride != null ? _fmt(_endOverride!) : null,
-        note: _note.text.trim(),
-      );
+    date: _start,
+    endDate: _start == _end ? null : _end,
+    shiftId: _shift?.id,
+    category: _category,
+    deltaStaff: _kind == _Kind.delta ? _delta : null,
+    minStaff: _kind == _Kind.closed ? 0 : null,
+    startTimeOverride: _kind == _Kind.time && _startOverride != null ? _fmt(_startOverride!) : null,
+    endTimeOverride: _kind == _Kind.time && _endOverride != null ? _fmt(_endOverride!) : null,
+    note: _note.text.trim(),
+  );
 
   Widget _choice<T>(T value, T group, String label, ValueChanged<T> onTap) => ChoiceChip(
-        label: Text(label),
-        selected: value == group,
-        onSelected: (_) => onTap(value),
-        // 선택 = 딥 나이트 (가이드 4-3)
-        selectedColor: ThymeColor.primary,
-        labelStyle: TextStyle(color: value == group ? ThymeColor.onPrimary : ThymeColor.text, fontWeight: FontWeight.bold),
-        showCheckmark: false,
-      );
+    label: Text(label),
+    selected: value == group,
+    onSelected: (_) => onTap(value),
+    // 선택 = 딥 나이트 (가이드 4-3)
+    selectedColor: ThymeColor.primary,
+    labelStyle: TextStyle(color: value == group ? ThymeColor.onPrimary : ThymeColor.text, fontWeight: FontWeight.bold),
+    showCheckmark: false,
+  );
 
   Widget _label(String t) => Padding(
-        padding: const EdgeInsets.only(top: 16, bottom: 8),
-        child: Text(t, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.textSub)),
-      );
+    padding: const EdgeInsets.only(top: 16, bottom: 8),
+    child: Text(
+      t,
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.textSub),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -494,7 +578,10 @@ class _AddExceptionSheetState extends State<_AddExceptionSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("예외일 추가", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+              const Text(
+                "예외일 추가",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: ThymeColor.text),
+              ),
               _label("날짜"),
               OutlinedButton.icon(
                 onPressed: _pickRange,
@@ -502,60 +589,90 @@ class _AddExceptionSheetState extends State<_AddExceptionSheet> {
                 label: Text(sameDay ? "${_md(_start)} (${weekdayLabels[_start.weekday - 1]}) · 기간으로 바꾸기" : "${_md(_start)} – ${_md(_end)}"),
               ),
               _label("분류"),
-              Wrap(spacing: 8, runSpacing: 8, children: [
-                for (final c in ExceptionCategory.values) _choice(c, _category, c.label, (v) => setState(() => _category = v)),
-              ]),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [for (final c in ExceptionCategory.values) _choice(c, _category, c.label, (v) => setState(() => _category = v))],
+              ),
               _label("교대"),
-              Wrap(spacing: 8, runSpacing: 8, children: [
-                _choice<int?>(null, _shift?.id, "모든 교대", (_) => setState(() => _shift = null)),
-                for (final s in widget.shifts)
-                  _choice<int?>(s.id, _shift?.id, s.name, (_) => setState(() {
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _choice<int?>(null, _shift?.id, "모든 교대", (_) => setState(() => _shift = null)),
+                  for (final s in widget.shifts)
+                    _choice<int?>(
+                      s.id,
+                      _shift?.id,
+                      s.name,
+                      (_) => setState(() {
                         _shift = s;
                         _startOverride = _endOverride = null;
-                      })),
-              ]),
+                      }),
+                    ),
+                ],
+              ),
               _label("무엇이 달라지나요"),
-              Wrap(spacing: 8, runSpacing: 8, children: [
-                _choice(_Kind.delta, _kind, "인원 ±", (v) => setState(() => _kind = v)),
-                _choice(_Kind.closed, _kind, "휴무 (0명)", (v) => setState(() => _kind = v)),
-                _choice(_Kind.time, _kind, "시간 변경", (v) => setState(() => _kind = v)),
-              ]),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _choice(_Kind.delta, _kind, "인원 ±", (v) => setState(() => _kind = v)),
+                  _choice(_Kind.closed, _kind, "휴무 (0명)", (v) => setState(() => _kind = v)),
+                  _choice(_Kind.time, _kind, "시간 변경", (v) => setState(() => _kind = v)),
+                ],
+              ),
               const SizedBox(height: 12),
               if (_kind == _Kind.delta)
-                Row(children: [
-                  const Expanded(child: Text("평소 대비 인원", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text))),
-                  IconButton(
-                    tooltip: "1명 줄이기",
-                    onPressed: _delta > -5 ? () => setState(() => _delta = _delta - 1 == 0 ? -1 : _delta - 1) : null,
-                    icon: const Icon(Icons.remove_circle_outline),
-                  ),
-                  SizedBox(width: 44, child: Center(child: Text(_delta > 0 ? "+$_delta" : "$_delta", style: ThymeTheme.mono(context, size: 18)))),
-                  IconButton(
-                    tooltip: "1명 늘리기",
-                    onPressed: _delta < 5 ? () => setState(() => _delta = _delta + 1 == 0 ? 1 : _delta + 1) : null,
-                    icon: const Icon(Icons.add_circle_outline),
-                  ),
-                ]),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        "평소 대비 인원",
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: "1명 줄이기",
+                      onPressed: _delta > -5 ? () => setState(() => _delta = _delta - 1 == 0 ? -1 : _delta - 1) : null,
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
+                    SizedBox(
+                      width: 44,
+                      child: Center(child: Text(_delta > 0 ? "+$_delta" : "$_delta", style: ThymeTheme.mono(context, size: 18))),
+                    ),
+                    IconButton(
+                      tooltip: "1명 늘리기",
+                      onPressed: _delta < 5 ? () => setState(() => _delta = _delta + 1 == 0 ? 1 : _delta + 1) : null,
+                      icon: const Icon(Icons.add_circle_outline),
+                    ),
+                  ],
+                ),
               if (_kind == _Kind.time)
                 _shift == null
                     ? const Text("시간을 바꿀 교대를 위에서 골라 주세요.", style: TextStyle(fontSize: 14, color: ThymeColor.dangerText))
-                    : Row(children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => _pickTime(true),
-                            child: Text("시작 ${_fmt(_startOverride ?? _min(_shift!.startTime))}${_startOverride == null ? " (평소)" : ""}"),
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => _pickTime(true),
+                              child: Text("시작 ${_fmt(_startOverride ?? _min(_shift!.startTime))}${_startOverride == null ? " (평소)" : ""}"),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => _pickTime(false),
-                            child: Text("끝 ${_fmt(_endOverride ?? _min(_shift!.endTime))}${_endOverride == null ? " (평소)" : ""}"),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => _pickTime(false),
+                              child: Text("끝 ${_fmt(_endOverride ?? _min(_shift!.endTime))}${_endOverride == null ? " (평소)" : ""}"),
+                            ),
                           ),
-                        ),
-                      ]),
+                        ],
+                      ),
               const SizedBox(height: 12),
-              TextField(controller: _note, decoration: const InputDecoration(hintText: "메모 (선택) · 예: 겨울 세일")),
+              TextField(
+                controller: _note,
+                decoration: const InputDecoration(hintText: "메모 (선택) · 예: 겨울 세일"),
+              ),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,

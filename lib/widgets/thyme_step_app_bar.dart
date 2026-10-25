@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/theme.dart';
 import '../theme/thyme_colors.dart';
 import '../theme/thyme_theme.dart';
 import 'thyme_back_button.dart';
@@ -97,3 +98,14 @@ class ThymeStepAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 }
+
+/// 매장 설정(P08)에서 등록 화면(O02~O06)을 고칠 때 쓰는 상단 바: ← 제목 (진행바 없음)
+PreferredSizeWidget thymeEditAppBar(String title) => AppBar(
+      backgroundColor: ThymeColor.bg,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      automaticallyImplyLeading: false,
+      leading: const ThymeBackButton(icon: Icons.arrow_back_ios, color: ThymeColor.text, size: 20),
+      centerTitle: true,
+      title: Text(title, style: const TextStyle(color: ThymeColor.text, fontSize: 17, fontWeight: FontWeight.bold)),
+    );

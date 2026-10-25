@@ -9,7 +9,10 @@ import 'p02_registration_complete_page.dart';
 
 /// O05 근무 규칙과 수당 (매장 등록 6/6). 법정 한도는 잠금, 연속 근무 한도·5인 이상만 PATCH /settings → P02
 class LaborLawPage extends StatefulWidget {
-  const LaborLawPage({super.key});
+  const LaborLawPage({super.key, this.editing = false});
+
+  /// 매장 설정(P08)에서 고칠 때: 진행바 대신 제목, '다음' 대신 저장 후 돌아가기
+  final bool editing;
 
   @override
   State<LaborLawPage> createState() => _LaborLawPageState();
@@ -55,6 +58,11 @@ class _LaborLawPageState extends State<LaborLawPage> {
         fivePlusBusiness: _fivePlusAuto && !_fivePlusTouched ? null : _fivePlus,
       );
       if (!mounted) return;
+      if (widget.editing) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("저장했어요.")));
+        Navigator.pop(context);
+        return;
+      }
       // 등록이 끝나면 뒤로가기로 등록 단계에 돌아가지 않게 스택을 비운다
       resetTo(context, const RegistrationCompletePage());
     } on ApiException catch (e) {
@@ -69,7 +77,7 @@ class _LaborLawPageState extends State<LaborLawPage> {
     final days = _days;
     return Scaffold(
       backgroundColor: ThymeColor.bg,
-      appBar: const ThymeStepAppBar(step: 6, total: 6, group: '매장 등록', owner: true),
+      appBar: widget.editing ? thymeEditAppBar('노동법 한도 · 수당') : const ThymeStepAppBar(step: 6, total: 6, group: '매장 등록', owner: true),
       body: Column(
         children: [
           Expanded(
@@ -168,7 +176,9 @@ class _LaborLawPageState extends State<LaborLawPage> {
               child: SizedBox(
                 width: double.infinity,
                 // 흐름의 마지막 확정 = 민트 CTA (가이드 4-0)
-                child: ThymeFinalButton(label: _saving ? "저장 중…" : "매장 등록 완료", onPressed: days == null || _saving ? null : _finish),
+                child: widget.editing
+                    ? FilledButton(onPressed: days == null || _saving ? null : _finish, child: Text(_saving ? "저장 중…" : "저장"))
+                    : ThymeFinalButton(label: _saving ? "저장 중…" : "매장 등록 완료", onPressed: days == null || _saving ? null : _finish),
               ),
             ),
           ),
