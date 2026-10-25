@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "572692752059",
+    "project_id": "thyme-6730c",
+    "storage_bucket": "thyme-6730c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:572692752059:android:f684e103d5a420c55aab9e",
+        "android_client_info": {
+          "package_name": "com.example.thyme_frontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtAuX86h-m1EekTRDf5mFI4k1AVGA_9t4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
