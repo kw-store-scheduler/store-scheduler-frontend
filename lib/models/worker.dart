@@ -94,12 +94,14 @@ class WorkerHome {
     required this.monthHours,
     required this.monthPay,
     required this.weeklyHolidayPay,
+    this.monthDeduction = 0,
+    int? monthNetPay,
     required this.nextMonthPreferences,
     this.leaveRemaining,
     this.leaveEntitled,
     this.latestNoticeTitle,
     this.latestNoticeAt,
-  });
+  }) : monthNetPay = monthNetPay ?? monthPay;
 
   final String storeName;
   final String employeeName;
@@ -114,6 +116,10 @@ class WorkerHome {
   final double monthHours;
   final int monthPay;
   final int weeklyHolidayPay;
+
+  /// 점주가 정한 공제(3.3%·4대 보험)로 계산한 예상 공제·실수령 (공제 없음이면 0 · monthPay)
+  final int monthDeduction;
+  final int monthNetPay;
   final PreferenceStatus nextMonthPreferences;
 
   /// 정규직만
@@ -145,6 +151,8 @@ class WorkerHome {
       monthHours: (pay['totalHours'] as num?)?.toDouble() ?? 0,
       monthPay: _int(pay['totalPay']),
       weeklyHolidayPay: _int(pay['weeklyHolidayPay']),
+      monthDeduction: _int(pay['deduction']),
+      monthNetPay: pay['netPay'] == null ? null : _int(pay['netPay']),
       nextMonthPreferences: PreferenceStatus.fromJson(j['nextMonthPreferences'] as Map<String, dynamic>),
       leaveRemaining: (leave?['remaining'] as num?)?.toInt(),
       leaveEntitled: (leave?['entitled'] as num?)?.toInt(),

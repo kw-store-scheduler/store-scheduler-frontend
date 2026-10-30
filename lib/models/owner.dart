@@ -649,9 +649,23 @@ class Applicant {
       );
 }
 
-/// 월 급여 한 줄 (GET /payroll, M02)
+/// 예상 실수령액 계산용 공제 (백엔드 PayDeduction). 근로소득세는 빠진 예상치
+enum PayDeduction {
+  none('없음'),
+  freelance('3.3%'),
+  fourInsurance('4대 보험');
+
+  const PayDeduction(this.label);
+  final String label;
+
+  String get json => switch (this) { none => 'NONE', freelance => 'FREELANCE', fourInsurance => 'FOUR_INSURANCE' };
+
+  static PayDeduction fromJson(Object? v) => switch (v) { 'FREELANCE' => freelance, 'FOUR_INSURANCE' => fourInsurance, _ => none };
+}
+
+/// 월 급여 한 줄 (GET /payroll, M02). deduction·netPay 는 공제 설정으로 계산한 예상치
 class PayrollRow {
-  const PayrollRow({required this.employeeId, required this.employeeName, required this.totalHours, required this.hourlyWage, required this.regularWage, required this.weeklyHolidayPay, required this.nightPay, required this.overtimePay, required this.totalPay});
+  const PayrollRow({required this.employeeId, required this.employeeName, required this.totalHours, required this.hourlyWage, required this.regularWage, required this.weeklyHolidayPay, required this.nightPay, required this.overtimePay, this.holidayPay = 0, required this.totalPay, this.deductionType = PayDeduction.none, this.deduction = 0, int? netPay}) : netPay = netPay ?? totalPay;
 
   final int employeeId;
   final String employeeName;
@@ -661,7 +675,12 @@ class PayrollRow {
   final int weeklyHolidayPay;
   final int nightPay;
   final int overtimePay;
+  /// 공휴일 가산 (5인 이상)
+  final int holidayPay;
   final int totalPay;
+  final PayDeduction deductionType;
+  final int deduction;
+  final int netPay;
 
   factory PayrollRow.fromJson(Map<String, dynamic> j) => PayrollRow(
         employeeId: j['employeeId'] as int,
@@ -672,7 +691,11 @@ class PayrollRow {
         weeklyHolidayPay: (j['weeklyHolidayPay'] as num?)?.toInt() ?? 0,
         nightPay: (j['nightPay'] as num?)?.toInt() ?? 0,
         overtimePay: (j['overtimePay'] as num?)?.toInt() ?? 0,
+        holidayPay: (j['holidayPay'] as num?)?.toInt() ?? 0,
         totalPay: (j['totalPay'] as num?)?.toInt() ?? 0,
+        deductionType: PayDeduction.fromJson(j['deductionType']),
+        deduction: (j['deduction'] as num?)?.toInt() ?? 0,
+        netPay: (j['netPay'] as num?)?.toInt(),
       );
 }
 

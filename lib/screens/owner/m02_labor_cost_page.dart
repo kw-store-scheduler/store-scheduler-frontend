@@ -10,7 +10,7 @@ import '../../widgets/thyme_owner_tab_bar.dart';
 import 'm01_worker_approval_page.dart' show minimumWage2026;
 
 /// M02 인건비 (점주 하단 탭 '인건비'). 확정 근무표로 계산한 월 예상 인건비 (GET /payroll)
-/// 기본급 · 주휴수당 · 야간·연장(5인 이상) 합계와 직원별 시급·시간. 줄을 누르면 시급을 바꾼다
+/// 기본급 · 주휴수당 · 가산(야간·연장·휴일, 5인 이상) 합계와 직원별 시급·시간·예상 공제. 줄을 누르면 시급을 바꾼다
 class LaborCostPage extends StatefulWidget {
   const LaborCostPage({super.key});
 
@@ -127,8 +127,13 @@ class _LaborCostPageState extends State<LaborCostPage> {
                       const SizedBox(width: 8),
                       _part("주휴수당", sum((r) => r.weeklyHolidayPay)),
                       const SizedBox(width: 8),
-                      _part("야간·연장", sum((r) => r.nightPay + r.overtimePay)),
+                      _part("가산", sum((r) => r.nightPay + r.overtimePay + r.holidayPay)),
                     ]),
+                    if (sum((r) => r.deduction) > 0) ...[
+                      const SizedBox(height: 10),
+                      Text("직원 예상 공제 ${won(sum((r) => r.deduction))} · 예상 실수령 합계 ${won(sum((r) => r.netPay))}",
+                          style: const TextStyle(color: ThymeColor.onPrimarySub, fontSize: 13)),
+                    ],
                   ]),
           ),
           Padding(
@@ -164,7 +169,7 @@ class _LaborCostPageState extends State<LaborCostPage> {
                             ]),
                           ),
                         const SizedBox(height: 8),
-                        const Text("줄을 누르면 시급을 바꿔요. 5인 미만 매장은 야간·연장 가산이 빠져요.",
+                        const Text("줄을 누르면 시급을 바꿔요. 5인 미만 매장은 야간·연장·휴일 가산이 빠져요. 공제는 근로소득세를 뺀 예상치예요.",
                             style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
                       ]),
           ),
@@ -206,7 +211,11 @@ class _LaborCostPageState extends State<LaborCostPage> {
           ),
           const SizedBox(width: 10),
           Expanded(child: Text("${won(r.hourlyWage).substring(1)}/h · ${h}h", style: ThymeTheme.mono(context, size: 13, color: ThymeColor.textSub))),
-          Text(won(r.totalPay), style: ThymeTheme.mono(context, size: 15)),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text(won(r.totalPay), style: ThymeTheme.mono(context, size: 15)),
+            if (r.deduction > 0)
+              Text("${r.deductionType.label} 공제 · 실수령 ${won(r.netPay)}", style: const TextStyle(fontSize: 12, color: ThymeColor.textSub)),
+          ]),
         ]),
       ),
     );
