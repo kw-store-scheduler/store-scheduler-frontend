@@ -119,9 +119,12 @@ class _PartTimerHomePageState extends State<PartTimerHomePage> {
   List<Widget> _notices(WorkerHome h) {
     final p = h.nextMonthPreferences;
     final rows = <Widget>[
-      if (!p.submittedByMe && p.daysUntilDeadline >= 0)
-        _row(ThymeColor.warn, "${p.monthNumber}월 희망 제출 · 아직 안 냈어요", "D-${p.daysUntilDeadline}", () => _open(const LoadLastMonthPage())),
-      if (p.submittedByMe) _row(ThymeColor.accent, "${p.monthNumber}월 희망 제출 완료", null, null),
+      // 마감이 지나도 서버는 받는다 (사장님 화면에 '늦게 냄'으로 보임). 낸 뒤에도 다시 고칠 수 있다
+      if (!p.submittedByMe)
+        _row(p.daysUntilDeadline >= 0 ? ThymeColor.warn : ThymeColor.danger, "${p.monthNumber}월 희망 제출 · 아직 안 냈어요",
+            p.daysUntilDeadline >= 0 ? "D-${p.daysUntilDeadline}" : "마감 지남", () => _open(LoadLastMonthPage(month: _monthOf(p.month))))
+      else
+        _row(ThymeColor.accent, "${p.monthNumber}월 희망 제출 완료", "고치기", () => _open(LoadLastMonthPage(month: _monthOf(p.month)))),
       if (h.latestNoticeTitle != null)
         _row(ThymeColor.info, "새 공지 · ${h.latestNoticeTitle}", h.latestNoticeAt == null ? null : "${h.latestNoticeAt!.month}/${h.latestNoticeAt!.day}",
             () => ThymeWorkerTabBar.go(context, WorkerTab.notice)),
@@ -142,6 +145,9 @@ class _PartTimerHomePageState extends State<PartTimerHomePage> {
       ),
     ];
   }
+
+  /// "2026-11" → 2026년 11월 1일
+  static DateTime _monthOf(String ym) => DateTime(int.parse(ym.substring(0, 4)), int.parse(ym.substring(5, 7)));
 
   Widget _row(Color dot, String title, String? trailing, VoidCallback? onTap) => ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),

@@ -136,23 +136,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                   onTap: () => _open(CoverAcceptPage(offerId: h.swapOffers.first.offerId)),
                 ),
               ],
-              if (!h.nextMonthPreferences.submittedByMe && h.nextMonthPreferences.daysUntilDeadline >= 0) ...[
-                const SizedBox(height: 12),
-                Material(
-                  color: ThymeColor.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  clipBehavior: Clip.antiAlias,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                    leading: const Icon(Icons.circle, size: 10, color: ThymeColor.warn),
-                    minLeadingWidth: 10,
-                    title: Text("${h.nextMonthPreferences.monthNumber}월 연차·희망 제출 · 아직 안 냈어요",
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                    trailing: Text("D-${h.nextMonthPreferences.daysUntilDeadline}", style: const TextStyle(color: ThymeColor.textSub)),
-                    onTap: () => _open(const EmployeeLeavePage()),
-                  ),
-                ),
-              ],
+              ..._preferenceRow(h),
               const SizedBox(height: 12),
               _taskCard(),
             ],
@@ -161,6 +145,32 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
       ),
       bottomNavigationBar: const ThymeWorkerTabBar(current: WorkerTab.home),
     );
+  }
+
+  /// 다음 달 연차·희망 제출 (마감이 지나도 서버는 받는다. 낸 뒤에도 고칠 수 있다)
+  List<Widget> _preferenceRow(WorkerHome h) {
+    final p = h.nextMonthPreferences;
+    final month = DateTime(int.parse(p.month.substring(0, 4)), int.parse(p.month.substring(5, 7)));
+    final (dot, title, trailing) = p.submittedByMe
+        ? (ThymeColor.accent, "${p.monthNumber}월 연차·희망 제출 완료", "고치기")
+        : (p.daysUntilDeadline >= 0 ? ThymeColor.warn : ThymeColor.danger, "${p.monthNumber}월 연차·희망 제출 · 아직 안 냈어요",
+            p.daysUntilDeadline >= 0 ? "D-${p.daysUntilDeadline}" : "마감 지남");
+    return [
+      const SizedBox(height: 12),
+      Material(
+        color: ThymeColor.surface,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          leading: Icon(Icons.circle, size: 10, color: dot),
+          minLeadingWidth: 10,
+          title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+          trailing: Text(trailing, style: const TextStyle(color: ThymeColor.textSub)),
+          onTap: () => _open(EmployeeLeavePage(month: month)),
+        ),
+      ),
+    ];
   }
 
   Widget _stats(WorkerHome h) {
