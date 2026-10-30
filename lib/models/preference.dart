@@ -264,3 +264,56 @@ class UnavailablePeriod {
         if (note != null && note!.isNotEmpty) 'note': note,
       };
 }
+
+/// 이번 달 근무량 (GET /preferences/my/workload, W06). 계약 주 시간 범위를 그달 시간으로 바꾼 값과 예상 급여(주휴 포함)
+class Workload {
+  const Workload({
+    this.contractMinWeekly,
+    this.contractMaxWeekly,
+    this.contractMinMonthly,
+    this.contractMaxMonthly,
+    required this.hourlyWage,
+    this.minMonthly,
+    this.maxMonthly,
+    this.expectedPayMin,
+    this.expectedPayMax,
+    required this.belowWeeklyHolidayThreshold,
+    required this.exceedsContract,
+  });
+
+  /// 근로계약 주 시간 (없으면 계약 범위 없음)
+  final int? contractMinWeekly;
+  final int? contractMaxWeekly;
+  final int? contractMinMonthly;
+  final int? contractMaxMonthly;
+  final int hourlyWage;
+
+  /// 보낸 값 (안 보내면 계약 범위)
+  final int? minMonthly;
+  final int? maxMonthly;
+  final int? expectedPayMin;
+  final int? expectedPayMax;
+
+  /// 최소가 주 15시간 아래 → 주휴수당이 빠지는 주가 생길 수 있음
+  final bool belowWeeklyHolidayThreshold;
+
+  /// 최대가 계약 상한을 넘음 → 사장님 승인이 필요
+  final bool exceedsContract;
+
+  factory Workload.fromJson(Map<String, dynamic> j) {
+    int? n(String k) => (j[k] as num?)?.toInt();
+    return Workload(
+      contractMinWeekly: n('contractMinWeekly'),
+      contractMaxWeekly: n('contractMaxWeekly'),
+      contractMinMonthly: n('contractMinMonthly'),
+      contractMaxMonthly: n('contractMaxMonthly'),
+      hourlyWage: n('hourlyWage') ?? 0,
+      minMonthly: n('minMonthly'),
+      maxMonthly: n('maxMonthly'),
+      expectedPayMin: n('expectedPayMin'),
+      expectedPayMax: n('expectedPayMax'),
+      belowWeeklyHolidayThreshold: j['belowWeeklyHolidayThreshold'] as bool? ?? false,
+      exceedsContract: j['exceedsContract'] as bool? ?? false,
+    );
+  }
+}

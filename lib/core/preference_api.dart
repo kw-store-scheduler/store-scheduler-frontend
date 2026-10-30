@@ -55,6 +55,13 @@ class PreferenceApi {
   Future<void> replaceUnavailablePeriods(List<UnavailablePeriod> list) =>
       _api.put('$_store/unavailable-periods/my', data: [for (final p in list) p.toJson()]);
 
+  /// W06 이번 달 근무량: 계약 범위와 예상 급여. min·max 를 주면 그 값으로 계산한다
+  Future<Workload> workload(DateTime month, {int? min, int? max}) async => Workload.fromJson(await _api.get('$_base/my/workload', query: {
+        'month': monthParam(month),
+        'minMonthlyHours': ?min,
+        'maxMonthlyHours': ?max,
+      }) as Map<String, dynamic>);
+
   /// W14 "신청 제출". 다시 내면 그달 칸을 통째로 바꾼다
   Future<PreferenceMonth> submit(PreferenceDraft draft) async => PreferenceMonth.fromJson(
       await _api.put('$_base/my', query: {'month': monthParam(draft.month)}, data: draft.toJson()) as Map<String, dynamic>);

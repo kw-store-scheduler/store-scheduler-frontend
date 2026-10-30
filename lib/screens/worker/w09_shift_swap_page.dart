@@ -183,11 +183,12 @@ class _ShiftSwapPageState extends State<ShiftSwapPage> {
                     for (final o in options) _optionRow(o),
                   if (_exchange) ...[
                     const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(18, 8, 8, 8),
-                      decoration: BoxDecoration(color: ThymeColor.surface, borderRadius: BorderRadius.circular(18)),
+                    // 스위치 줄의 물결이 보이도록 Container 대신 Material
+                    Material(
+                      color: ThymeColor.surface,
+                      borderRadius: BorderRadius.circular(18),
                       child: SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
+                        contentPadding: const EdgeInsets.fromLTRB(18, 8, 8, 8),
                         value: _recurring,
                         onChanged: (v) => setState(() => _recurring = v),
                         title: const Text("매주 이렇게 바꾸기", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),

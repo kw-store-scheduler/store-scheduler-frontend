@@ -72,6 +72,12 @@ class _FakeServer implements HttpClientAdapter {
             },
           },
         ('GET' || 'PUT', '/api/stores/7/unavailable-periods/my') => [],
+        // 근로계약 주 15–20시간 → 11월 64–86시간 (경고 둘 다 켜서 배너도 그린다)
+        ('GET', '/api/stores/7/preferences/my/workload') => {
+            'contractMinWeekly': 15, 'contractMaxWeekly': 20, 'contractMinMonthly': 64, 'contractMaxMonthly': 86,
+            'hourlyWage': 10320, 'minMonthly': 64, 'maxMonthly': 86, 'expectedPayMin': 660480, 'expectedPayMax': 1065024,
+            'belowWeeklyHolidayThreshold': true, 'exceedsContract': true,
+          },
         // 이미 낸 휴무 2건 (필수 1 · 희망 1, 대안 순서 있음) → W03 카드가 그려진다
         ('GET', '/api/stores/7/day-offs/my') => [
             {'id': 1, 'date': '2026-11-07', 'type': 'MUST', 'reason': '가족 행사', 'fallbacks': [], 'downgraded': false},
@@ -148,6 +154,9 @@ void main() {
     expect(find.text('필수 · 순위 없이 항상 지켜져요'), findsOneWidget);
     expect(find.textContaining('1순위 오후만 쉬기 → 2순위 다른 날과 교환'), findsOneWidget);
     await tapNext(tester, '다음'); // W03
+    // W06: 계약 범위와 예상 급여는 서버 값
+    expect(find.text('주 15–20시간 · 시급 ₩10,320'), findsOneWidget);
+    expect(find.text('64h'), findsOneWidget);
     await tapNext(tester, '다음'); // W06
     await tapNext(tester, '다음'); // W05
     await tapNext(tester, '신청 제출'); // W14
