@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../core/home_router.dart';
 import '../../core/api_service.dart';
 import '../../core/preference_api.dart';
-import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../models/preference.dart';
 import '../../theme/thyme_theme.dart';
@@ -44,20 +43,17 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
     };
   }
 
-  /// 로그인했으면 서버에 제출하고, 시연 중이면 바로 다음 화면으로
   Future<void> _submit() async {
     widget.draft.priorities = List.of(_preferences);
-    if (Session.instance.isLoggedIn) {
-      setState(() => _submitting = true);
-      try {
-        await PreferenceApi().submit(widget.draft);
-      } on ApiException catch (e) {
-        if (mounted) {
-          setState(() => _submitting = false);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-        }
-        return;
+    setState(() => _submitting = true);
+    try {
+      await PreferenceApi().submit(widget.draft);
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       }
+      return;
     }
     if (!mounted) return;
     // 플로우맵 갈림길 ②: 알바 W14 → H01 알바 홈, 직원 W14 → H02 직원 홈

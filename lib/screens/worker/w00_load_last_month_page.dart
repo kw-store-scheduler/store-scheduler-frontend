@@ -23,7 +23,7 @@ class _LoadLastMonthPageState extends State<LoadLastMonthPage> {
 
   late final DateTime _month = widget.month ?? DateTime(DateTime.now().year, DateTime.now().month + 1);
 
-  /// 로그인했으면 서버에서, 아니면 시연용 데이터로 초안을 만든다
+  /// 서버에서 그달 칸과 (고르면) 지난달 답을 받아 초안을 만든다
   Future<void> _start() async {
     setState(() => _loading = true);
     final PreferenceDraft draft;

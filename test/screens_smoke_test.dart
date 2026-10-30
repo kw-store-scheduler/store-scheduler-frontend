@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thyme_frontend/models/preference.dart';
-import 'package:thyme_frontend/models/preference_demo.dart';
 import 'package:thyme_frontend/screens/common/a03_login_page.dart';
 import 'package:thyme_frontend/screens/common/a04_phone_verification_page.dart';
 import 'package:thyme_frontend/screens/common/a06_role_selection_page.dart';
@@ -56,12 +55,13 @@ import 'package:thyme_frontend/screens/owner/p09_open_shift_post_page.dart';
 import 'package:thyme_frontend/screens/worker/h02_employee_home_page.dart';
 import 'package:thyme_frontend/screens/worker/w04_shift_attitude_page.dart';
 
+import 'fixtures/preference_fixture.dart';
 import 'test_helpers.dart';
 
 /// 희망 신청 단계 화면용 시연 초안
 PreferenceDraft _draft() {
   final month = DateTime(2026, 11);
-  return PreferenceDraft(month: month)..view = demoPreferenceMonth(month);
+  return PreferenceDraft(month: month)..view = samplePreferenceMonth(month);
 }
 
 /// 모든 화면이 예외(레이아웃 오버플로 포함) 없이 그려지는지 확인하는 스모크 테스트

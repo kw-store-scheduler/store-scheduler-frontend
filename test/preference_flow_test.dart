@@ -131,19 +131,6 @@ void main() {
     expect(body['priorities'], ['DAY_OFF', 'SHIFT', 'WEEKEND', 'HOURS', 'RHYTHM']);
   });
 
-  testWidgets('로그인하지 않으면 시연 데이터로 끝까지 가고 서버를 부르지 않는다', (tester) async {
-    await pumpScreen(tester, LoadLastMonthPage(month: DateTime(2026, 11)));
-    await tapNext(tester, '시작하기');
-    await tapNext(tester, '다음');
-    expect(find.text('수업'), findsWidgets); // 시연 데이터: 월·목 수업
-    for (var i = 0; i < 4; i++) {
-      await tapNext(tester, '다음');
-    }
-    await tapNext(tester, '신청 제출');
-    expect(find.byType(PartTimerHomePage), findsOneWidget);
-    expect(server.requests, isEmpty);
-  });
-
   testWidgets('첫 달이라 지난달 답이 없으면 안내하고 빈 초안으로 이어 간다', (tester) async {
     server.firstMonth = true;
     await tester.runAsync(() => Session.instance.login('staff01', 'pw'));
