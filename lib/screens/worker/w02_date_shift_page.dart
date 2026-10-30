@@ -161,7 +161,7 @@ class _DateShiftPageState extends State<DateShiftPage> {
                             children: [
                               Text("주말 근무, 한 달 최대", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text)),
                               SizedBox(height: 4),
-                              Text("팀 평균 2회 · 4주 누적으로 공평하게", style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
+                              Text("주말은 4주 누적으로 팀이 공평하게 나눠요", style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
                             ],
                           ),
                         ),

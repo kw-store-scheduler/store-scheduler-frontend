@@ -200,15 +200,14 @@ void main() {
     expect(body['priorities'], ['DAY_OFF', 'SHIFT', 'WEEKEND', 'HOURS', 'RHYTHM']);
   });
 
-  testWidgets('첫 달이라 지난달 답이 없으면 안내하고 빈 초안으로 이어 간다', (tester) async {
+  testWidgets('첫 달이라 지난달 답이 없으면 W00 에서 안내하고 빈 초안으로 이어 간다', (tester) async {
     server.firstMonth = true;
     await tester.runAsync(() => Session.instance.login('staff01', 'pw'));
     await pumpScreen(tester, LoadLastMonthPage(month: DateTime(2026, 11)));
-    await tapNext(tester, '시작하기'); // '지난달 답 불러오기'가 기본 선택
-    expect(find.text('지난달에 낸 희망이 없어서 처음부터 써요.'), findsOneWidget);
-    // 안내 스낵바가 '다음' 버튼을 덮고 있으니 닫힐 때까지 기다린다
-    await tester.pump(const Duration(seconds: 5));
-    await tester.pumpAndSettle();
+    // W00 이 열리며 지난달 답을 미리 보고, 없으면 안내하고 '처음부터 새로 쓰기'를 고른다
+    await settle(tester);
+    expect(find.text('10월에 낸 희망이 없어요. 처음부터 써요.'), findsOneWidget);
+    await tapNext(tester, '시작하기');
     await tapNext(tester, '다음'); // W11 → W02
     expect(find.text('선호'), findsOneWidget); // 범례만 (불러온 칸 없음)
   });

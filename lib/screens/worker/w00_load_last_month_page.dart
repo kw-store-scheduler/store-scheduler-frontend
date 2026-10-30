@@ -23,6 +23,54 @@ class _LoadLastMonthPageState extends State<LoadLastMonthPage> {
 
   late final DateTime _month = widget.month ?? DateTime(DateTime.now().year, DateTime.now().month + 1);
 
+  /// 지난달 답 미리보기 (GET preferences/my/draft). 첫 달이면 null + [_noPrevious]
+  PreferenceMonth? _previous;
+  int _fixedCount = 0;
+  bool _noPrevious = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreview();
+  }
+
+  Future<void> _loadPreview() async {
+    try {
+      final api = PreferenceApi();
+      final fixed = await api.fixedSchedules();
+      final labels = {for (final f in fixed) f.label};
+      PreferenceMonth? previous;
+      try {
+        previous = await api.draftFromPrevious(_month);
+      } on ApiException catch (e) {
+        // 첫 달: "YYYY-MM에 제출한 희망이 없습니다." (400)
+        if (!(e.statusCode == 400 && e.message.endsWith('제출한 희망이 없습니다.'))) rethrow;
+      }
+      if (!mounted) return;
+      setState(() {
+        _fixedCount = labels.length;
+        _previous = previous;
+        _noPrevious = previous == null;
+        if (_noPrevious) _selectedValue = 2;
+      });
+    } on ApiException {
+      // 미리보기는 덤이다. 실패해도 '시작하기'에서 다시 받는다
+    }
+  }
+
+  List<(String, String)> _summary(PreferenceMonth m) {
+    final s = m.submission ?? const {};
+    final preferred = m.cells.where((c) => c.level == PreferenceLevel.preferred).length;
+    final available = m.cells.where((c) => c.level == PreferenceLevel.available).length;
+    return [
+      ("고정 일정", _fixedCount == 0 ? "없음" : "$_fixedCount건"),
+      ("날짜·교대", "선호 $preferred칸 · 가능 $available칸"),
+      if (s['maxWeekendShifts'] != null) ("주말", "한 달 ${s['maxWeekendShifts']}회까지"),
+      if (s['minMonthlyHours'] != null || s['maxMonthlyHours'] != null)
+        ("근무량", "이번 달 ${s['minMonthlyHours'] ?? '–'}~${s['maxMonthlyHours'] ?? '–'}h"),
+    ];
+  }
+
   /// 서버에서 그달 칸과 (고르면) 지난달 답을 받아 초안을 만든다
   Future<void> _start() async {
     setState(() => _loading = true);
@@ -79,7 +127,14 @@ class _LoadLastMonthPageState extends State<LoadLastMonthPage> {
                     ),
                     const SizedBox(height: 32),
 
-                    if (_selectedValue == 1)
+                    if (_noPrevious)
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(color: ThymeColor.surfaceSub, borderRadius: BorderRadius.circular(16)),
+                        child: Text("${DateTime(_month.year, _month.month - 1).month}월에 낸 희망이 없어요. 처음부터 써요.",
+                            style: const TextStyle(color: ThymeColor.textSub, fontSize: 14)),
+                      )
+                    else if (_selectedValue == 1 && _previous != null)
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(color: ThymeColor.surfaceSub, borderRadius: BorderRadius.circular(16)),
@@ -88,11 +143,7 @@ class _LoadLastMonthPageState extends State<LoadLastMonthPage> {
                           children: [
                             Text("${DateTime(_month.year, _month.month - 1).month}월에 제출한 내용", style: TextStyle(fontWeight: FontWeight.bold, color: ThymeColor.text, fontSize: 15)),
                             const SizedBox(height: 16),
-                            _buildSummaryRow("고정 일정", "월·목 10:30~13:30 수업 외 1건"),
-                            _buildSummaryRow("날짜·교대", "평일 오픈 선호 · 미들 가능"),
-                            _buildSummaryRow("주말", "한 달 2회까지 · 일요일 불가"),
-                            _buildSummaryRow("근무량", "계약 주 15~20h · 이번 달 64~86h"),
-                            _buildSummaryRow("역량", "중국어 상 · 영어 중 · 캐셔 · 홀"),
+                            for (final (label, value) in _summary(_previous!)) _buildSummaryRow(label, value),
                           ],
                         ),
                       ),
