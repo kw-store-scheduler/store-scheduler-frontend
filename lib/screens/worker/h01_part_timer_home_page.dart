@@ -1,261 +1,185 @@
 import 'package:flutter/material.dart';
+import '../../core/api_service.dart';
 import '../../core/theme.dart';
+import '../../core/worker_api.dart';
+import '../../models/owner.dart';
+import '../../models/worker.dart';
+import '../../widgets/thyme_worker_home_parts.dart';
 import '../../widgets/thyme_worker_tab_bar.dart';
 import 'h04_notification_page.dart';
 import 'h12_absence_report_page.dart';
 import 'w00_load_last_month_page.dart';
 import 'w08_cover_accept_page.dart';
 
-class PartTimerHomePage extends StatelessWidget {
+/// H01 알바 홈. GET /home/worker
+/// 오늘 근무(출근·퇴근, 오늘 못 나가요) → 나에게 온 대타 요청 → 희망 제출·새 공지 → 이번 주 → 이번 달 예상 급여
+class PartTimerHomePage extends StatefulWidget {
   const PartTimerHomePage({super.key});
 
   @override
+  State<PartTimerHomePage> createState() => _PartTimerHomePageState();
+}
+
+class _PartTimerHomePageState extends State<PartTimerHomePage> {
+  WorkerHome? _home;
+  String? _error;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _error = null);
+    try {
+      final h = await WorkerApi().home();
+      if (mounted) setState(() => _home = h);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
+
+  Future<void> _open(Widget page) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    if (mounted) _load();
+  }
+
+  Future<void> _clock() async {
+    final h = _home!;
+    setState(() => _busy = true);
+    try {
+      final api = WorkerApi();
+      h.clockIn == null ? await api.clockIn() : await api.clockOut();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(h.clockIn == null ? "출근을 기록했어요" : "퇴근을 기록했어요. 수고했어요")));
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final h = _home;
     return Scaffold(
       backgroundColor: ThymeColor.bg,
-      appBar: AppBar(
-        backgroundColor: ThymeColor.bg,
-        elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("구시대 커피 광운대점 · 알바", style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
-            const SizedBox(height: 2),
-            const Text("유나님, 좋은 아침이에요", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: ThymeColor.text),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationPage())),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // [1] 오늘 근무 카드 (메인)
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: ThymeColor.accent.withValues(alpha: 0.2), // 시안의 민트색 배경
-                borderRadius: BorderRadius.circular(20),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView(padding: const EdgeInsets.fromLTRB(20, 16, 20, 24), children: [
+            Row(children: [
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text("${h?.storeName ?? WorkerApi().myStoreName ?? ''} · 알바", style: const TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+                  const SizedBox(height: 4),
+                  Text(greeting(h?.employeeName ?? WorkerApi().myDisplayName ?? ''),
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+                ]),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "오늘 11/20(금) · 오픈",
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.text),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: ThymeColor.surface,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text("확정", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "09:00~14:00",
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: ThymeColor.text, letterSpacing: -1),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    "함께: 지수 · 하준 · 피크에 중국어 단체 손님",
-                    style: TextStyle(fontSize: 13, color: ThymeColor.textSub),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // H12 오늘 못 나가요 진입점
-                      GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AbsenceReportPage())),
-                        child: const Text(
-                          "오늘 못 나가요 〉",
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ThymeColor.dangerText),
-                        ),
-                      ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: ThymeColor.primary,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        // H05 출근 체크는 부수 서비스(X) 범위 밖
-                        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("출근 체크는 준비 중이에요"))),
-                        child: const Text("출근하기", style: TextStyle(color: ThymeColor.onPrimary, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                ],
+              IconButton.filled(
+                style: IconButton.styleFrom(backgroundColor: ThymeColor.surface, fixedSize: const Size(48, 48)),
+                icon: const Icon(Icons.notifications_none, color: ThymeColor.text),
+                onPressed: () => _open(const NotificationPage()),
               ),
-            ),
-            const SizedBox(height: 24),
-
-            // [2] 알림 요약 리스트
-            _buildAlertTile(
-              icon: Icons.swap_horiz,
-              title: "대타 요청이 왔어요",
-              subtitle: "오늘 마감 17~22시 · 예상 ₩51,600",
-              isUrgent: true,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CoverAcceptPage())),
-            ),
-            const SizedBox(height: 12),
-            _buildAlertTile(
-              icon: Icons.calendar_month,
-              title: "12월 희망 제출 · 아직 안 냈어요",
-              subtitle: "D-7",
-              isUrgent: false,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoadLastMonthPage())),
-            ),
-            const SizedBox(height: 12),
-            _buildAlertTile(
-              icon: Icons.campaign_outlined,
-              title: "새 공지 · 겨울 신메뉴 레시피",
-              subtitle: "08:12",
-              isUrgent: false,
-              onTap: () => ThymeWorkerTabBar.go(context, WorkerTab.notice),
-            ),
-            
-            const SizedBox(height: 32),
-
-            // [3] 이번 주 일정 요약
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text("이번 주", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                GestureDetector(
-                  onTap: () => ThymeWorkerTabBar.go(context, WorkerTab.schedule),
-                  child: Text("전체 근무표 〉", style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
+            ]),
+            const SizedBox(height: 16),
+            if (_error != null) ...[
+              Text(_error!, style: const TextStyle(color: ThymeColor.dangerText)),
+              TextButton(onPressed: _load, child: const Text("다시 불러오기")),
+            ] else if (h == null)
+              const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))
+            else ...[
+              WorkerTodayCard(home: h, busy: _busy, onClock: _clock, onAbsent: () => _open(AbsenceReportPage(shift: h.today))),
+              if (h.swapOffers.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                WorkerOfferBanner(
+                  offer: h.swapOffers.first,
+                  more: h.swapOffers.length - 1,
+                  onTap: () => _open(CoverAcceptPage(offerId: h.swapOffers.first.offerId)),
                 ),
               ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildDayCircle("16", "월", isActive: true, label: "오픈"),
-                _buildDayCircle("17", "화", isActive: false),
-                _buildDayCircle("18", "수", isActive: true, label: "마감"),
-                _buildDayCircle("19", "목", isActive: true, label: "마감"),
-                _buildDayCircle("20", "금", isActive: true, label: "오픈", isToday: true),
-                _buildDayCircle("21", "토", isActive: false),
-                _buildDayCircle("22", "일", isActive: true, label: "미들"),
-              ],
-            ),
-
-            const SizedBox(height: 32),
-
-            // [4] 하단 예상 급여 요약
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: ThymeColor.text,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("11월 예상 급여 · 60.5시간 · 주휴 포함", style: TextStyle(color: ThymeColor.onPrimary.withValues(alpha: 0.7), fontSize: 12)),
-                      const SizedBox(height: 4),
-                      const Text("₩710,016", style: TextStyle(color: ThymeColor.onPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: ThymeColor.surface.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text("기록 〉", style: TextStyle(color: ThymeColor.onPrimary, fontSize: 13)),
-                  )
-                ],
-              ),
-            ),
-          ],
+              ..._notices(h),
+              const SizedBox(height: 12),
+              WorkerWeekStrip(week: h.week, today: h.date, onAll: () => ThymeWorkerTabBar.go(context, WorkerTab.schedule)),
+              const SizedBox(height: 12),
+              _payCard(h),
+            ],
+          ]),
         ),
       ),
-      
       bottomNavigationBar: const ThymeWorkerTabBar(current: WorkerTab.home),
     );
   }
 
-  // 알림 타일 컴포넌트
-  Widget _buildAlertTile({required IconData icon, required String title, required String subtitle, required bool isUrgent, VoidCallback? onTap}) {
-    final tile = Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+  /// 희망 제출 · 새 공지 (구분선 리스트의 옐로·페리 점)
+  List<Widget> _notices(WorkerHome h) {
+    final p = h.nextMonthPreferences;
+    final rows = <Widget>[
+      // 마감이 지나도 서버는 받는다 (사장님 화면에 '늦게 냄'으로 보임). 낸 뒤에도 다시 고칠 수 있다
+      if (!p.submittedByMe)
+        _row(p.daysUntilDeadline >= 0 ? ThymeColor.warn : ThymeColor.danger, "${p.monthNumber}월 희망 제출 · 아직 안 냈어요",
+            p.daysUntilDeadline >= 0 ? "D-${p.daysUntilDeadline}" : "마감 지남", () => _open(LoadLastMonthPage(month: _monthOf(p.month))))
+      else
+        _row(ThymeColor.accent, "${p.monthNumber}월 희망 제출 완료", "고치기", () => _open(LoadLastMonthPage(month: _monthOf(p.month)))),
+      if (h.latestNoticeTitle != null)
+        _row(ThymeColor.info, "새 공지 · ${h.latestNoticeTitle}", h.latestNoticeAt == null ? null : "${h.latestNoticeAt!.month}/${h.latestNoticeAt!.day}",
+            () => ThymeWorkerTabBar.go(context, WorkerTab.notice)),
+    ];
+    if (rows.isEmpty) return const [];
+    return [
+      const SizedBox(height: 12),
+      Material(
         color: ThymeColor.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: Column(children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const Divider(height: 1, indent: 20, endIndent: 20),
+            rows[i],
+          ],
+        ]),
       ),
-      child: Row(
-        children: [
-          Icon(icon, color: isUrgent ? ThymeColor.dangerText : ThymeColor.text, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                    if (isUrgent) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(color: ThymeColor.danger, shape: BoxShape.circle),
-                      )
-                    ]
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(subtitle, style: TextStyle(fontSize: 12, color: isUrgent ? ThymeColor.dangerText : ThymeColor.textSub)),
-              ],
-            ),
-          ),
-          if (isUrgent)
-            const Text("응답 필요", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ThymeColor.dangerText))
-        ],
-      ),
-    );
-    return onTap == null ? tile : GestureDetector(onTap: onTap, child: tile);
+    ];
   }
 
-  // 주간 캘린더 동그라미 컴포넌트
-  Widget _buildDayCircle(String day, String weekday, {bool isActive = false, String? label, bool isToday = false}) {
-    return Column(
-      children: [
-        Text(weekday, style: TextStyle(fontSize: 12, color: isToday ? ThymeColor.text : ThymeColor.textSub, fontWeight: isToday ? FontWeight.bold : FontWeight.normal)),
-        const SizedBox(height: 8),
-        Text(day, style: TextStyle(fontSize: 14, color: isToday ? ThymeColor.text : (isActive ? ThymeColor.text : ThymeColor.border), fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        if (isActive && label != null)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: ThymeColor.accent.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(label, style: const TextStyle(fontSize: 10, color: ThymeColor.text, fontWeight: FontWeight.bold)),
-          )
-        else if (!isActive)
-          const SizedBox(height: 16),
-      ],
-    );
-  }
+  /// "2026-11" → 2026년 11월 1일
+  static DateTime _monthOf(String ym) => DateTime(int.parse(ym.substring(0, 4)), int.parse(ym.substring(5, 7)));
+
+  Widget _row(Color dot, String title, String? trailing, VoidCallback? onTap) => ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        leading: Icon(Icons.circle, size: 10, color: dot),
+        minLeadingWidth: 10,
+        title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+        trailing: trailing == null ? null : Text(trailing, style: const TextStyle(fontSize: 14, color: ThymeColor.textSub)),
+        onTap: onTap,
+      );
+
+  Widget _payCard(WorkerHome h) => Material(
+        color: ThymeColor.primary,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => ThymeWorkerTabBar.go(context, WorkerTab.me),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(children: [
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(
+                    "${h.date.month}월 예상 급여 · ${hours(h.monthHours)}시간${h.weeklyHolidayPay > 0 ? ' · 주휴 포함' : ''}",
+                    style: const TextStyle(fontSize: 13, color: ThymeColor.onPrimarySub),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(won(h.monthPay), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: ThymeColor.accent)),
+                ]),
+              ),
+              const Text("내 정보 →", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.onPrimary)),
+            ]),
+          ),
+        ),
+      );
 }

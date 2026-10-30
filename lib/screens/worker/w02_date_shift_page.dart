@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../models/preference.dart';
-import '../../models/preference_demo.dart';
 import '../../widgets/thyme_step_app_bar.dart';
 import 'w03_rest_day_preference_page.dart';
 
-/// W02 날짜 × 교대 (3/7). 초안의 view(서버 또는 시연 데이터)로 표를 그리고, 누른 칸을 초안에 바로 적는다
+/// W02 날짜 × 교대 (3/7). 초안의 view(서버의 그달 칸)로 표를 그리고, 누른 칸을 초안에 바로 적는다
 class DateShiftPage extends StatefulWidget {
   const DateShiftPage({super.key, required this.draft});
 
@@ -19,7 +18,7 @@ class _DateShiftPageState extends State<DateShiftPage> {
   static const _weekdays = ["월", "화", "수", "목", "금", "토", "일"];
 
   PreferenceDraft get _draft => widget.draft;
-  late final PreferenceMonth _view = _draft.view ?? demoPreferenceMonth(_draft.month);
+  late final PreferenceMonth _view = _draft.view!;
 
   // [UI 상태용 변수]
   int _selectedWeek = 0;
@@ -162,7 +161,7 @@ class _DateShiftPageState extends State<DateShiftPage> {
                             children: [
                               Text("주말 근무, 한 달 최대", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text)),
                               SizedBox(height: 4),
-                              Text("팀 평균 2회 · 4주 누적으로 공평하게", style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
+                              Text("주말은 4주 누적으로 팀이 공평하게 나눠요", style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
                             ],
                           ),
                         ),

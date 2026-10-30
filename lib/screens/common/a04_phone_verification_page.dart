@@ -55,8 +55,9 @@ class PhoneVerificationPage extends StatelessWidget {
                     side: BorderSide(color: ThymeColor.border),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: () {},
-                  child: const Text("인증번호 받기", style: TextStyle(color: ThymeColor.text, fontSize: 16, fontWeight: FontWeight.bold)),
+                  // 서버에 휴대폰 인증이 없어서 꺼 둔다 (로그인 화면도 휴대폰은 '준비 중')
+                  onPressed: null,
+                  child: const Text("인증번호 받기 · 준비 중", style: TextStyle(color: ThymeColor.disabled, fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
               

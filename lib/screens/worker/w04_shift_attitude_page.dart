@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../models/preference.dart';
-import '../../models/preference_demo.dart';
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_step_app_bar.dart';
 import 'w14_preference_submit_page.dart';
@@ -24,7 +23,7 @@ class _ShiftAttitudePageState extends State<ShiftAttitudePage> {
   ];
 
   PreferenceDraft get _draft => widget.draft;
-  late final List<ShiftSummary> _shifts = (_draft.view ?? demoPreferenceMonth(_draft.month)).shifts;
+  late final List<ShiftSummary> _shifts = _draft.view!.shifts;
 
   static String _hm(String time) => time.substring(0, 5);
 

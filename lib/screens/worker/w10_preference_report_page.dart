@@ -1,232 +1,192 @@
 import 'package:flutter/material.dart';
-import '../../widgets/thyme_back_button.dart';
+import '../../core/api_service.dart';
 import '../../core/theme.dart';
+import '../../core/worker_api.dart';
+import '../../models/owner.dart';
+import '../../models/worker.dart';
+import '../../theme/thyme_theme.dart';
+import '../../widgets/thyme_back_button.dart';
+import '../../widgets/thyme_leaf.dart';
 import 'w09_shift_swap_page.dart';
 
-class PreferenceReportPage extends StatelessWidget {
-  const PreferenceReportPage({super.key});
+/// W10 희망 반영 결과. GET /preference-report/my?month= (확정된 그달 근무표 기준)
+/// 선호 반영률, 휴무 수용률, 최근 4주 부담 근무(주말·마감·야간) 나 vs 팀 평균, 반영 못 한 근무와 이유
+class PreferenceReportPage extends StatefulWidget {
+  const PreferenceReportPage({super.key, this.month});
+
+  /// 없으면 이번 달
+  final DateTime? month;
+
+  @override
+  State<PreferenceReportPage> createState() => _PreferenceReportPageState();
+}
+
+class _PreferenceReportPageState extends State<PreferenceReportPage> {
+  late final DateTime _month = widget.month ?? DateTime(DateTime.now().year, DateTime.now().month);
+  PreferenceReport? _report;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _error = null);
+    try {
+      final r = await WorkerApi().preferenceReport(_month);
+      if (mounted) setState(() => _report = r);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final r = _report;
+    final first = r?.unfulfilled.firstOrNull;
     return Scaffold(
       backgroundColor: ThymeColor.bg,
       appBar: AppBar(
         backgroundColor: ThymeColor.bg,
         elevation: 0,
-        leading: ThymeBackButton(size: 20),
-        title: const Text(
-          "11월 희망 반영 결과",
-          style: TextStyle(color: ThymeColor.text, fontSize: 16, fontWeight: FontWeight.bold),
-        ),
+        leading: const ThymeBackButton(size: 20),
+        title: Text("${_month.month}월 희망 반영 결과", style: const TextStyle(color: ThymeColor.text, fontSize: 16, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
+      body: SafeArea(
+        child: Column(children: [
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 상단 요약 카드 (반영률)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: ThymeColor.text,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("희망 반영", style: TextStyle(color: ThymeColor.onPrimary.withValues(alpha: 0.7), fontSize: 13)),
-                              const SizedBox(height: 8),
-                              const Text("95%", style: TextStyle(color: ThymeColor.successText, fontSize: 28, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 4),
-                              Text("19개 중 18개", style: TextStyle(color: ThymeColor.onPrimary.withValues(alpha: 0.7), fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: ThymeColor.surfaceSub,
-                            border: Border.all(color: ThymeColor.border),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("휴무 요청 수용", style: TextStyle(color: ThymeColor.textSub, fontSize: 13)),
-                              SizedBox(height: 8),
-                              Text("100%", style: TextStyle(color: ThymeColor.text, fontSize: 28, fontWeight: FontWeight.bold)),
-                              SizedBox(height: 4),
-                              Text("필수 1 · 희망 1", style: TextStyle(color: ThymeColor.textSub, fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-
-                  // 통계 차트 영역 (부담 근무 비교)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text("부담 근무, 나와 팀 평균", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                      Text("최근 4주 누적", style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  _buildStatRow("주말 근무", 2, 2.8, 5),
-                  const SizedBox(height: 20),
-                  _buildStatRow("마감 근무", 4, 4.3, 7),
-                  const SizedBox(height: 20),
-                  _buildStatRow("야간 근무", 0, 0.6, 3),
-
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Container(width: 8, height: 8, color: ThymeColor.accent),
-                      const SizedBox(width: 6),
-                      const Text("민트 막대가 나", style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
-                      const SizedBox(width: 12),
-                      Container(width: 2, height: 10, color: ThymeColor.text),
-                      const SizedBox(width: 6),
-                      const Text("세로선이 팀 평균이에요.", style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-
-                  // 반영되지 못한 내역 및 보상 안내
-                  const Text("반영되지 못한 1건", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: ThymeColor.surface,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.edit_calendar, size: 18, color: ThymeColor.text),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                "11/18(수) 오픈 선호 → 마감 배정",
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.text),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          "오픈은 최소 인원이 찼고, 마감에 중국어 가능자가 필요했어요.\n다음 달 오픈 우선 순위가 올라가요.",
-                          style: TextStyle(fontSize: 13, color: ThymeColor.text.withValues(alpha: 0.8), height: 1.5),
-                        ),
-                      ],
+            child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 24), children: [
+              if (_error != null) ...[
+                Text(_error!, style: const TextStyle(color: ThymeColor.dangerText)),
+                TextButton(onPressed: _load, child: const Text("다시 불러오기")),
+              ] else if (r == null)
+                const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))
+              else if (r.assignedCount == 0)
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(color: ThymeColor.surfaceSub, borderRadius: BorderRadius.circular(16)),
+                  child: Text("${_month.month}월에 확정된 내 근무가 없어요.", style: const TextStyle(fontSize: 14, color: ThymeColor.textSub)),
+                )
+              else ...[
+                Row(children: [
+                  Expanded(
+                    child: _rateCard(
+                      dark: true,
+                      label: "희망 반영",
+                      rate: r.preferenceRate,
+                      sub: r.preferenceRate == null ? "선호를 낸 근무가 없어요" : "${r.assignedCount}개 중 ${r.honoredCount}개",
                     ),
                   ),
-                ],
-              ),
-            ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _rateCard(
+                      dark: false,
+                      label: "휴무 요청 수용",
+                      rate: r.dayOffRate,
+                      sub: r.dayOffRequested == 0 ? "휴무 요청이 없었어요" : "${r.dayOffRequested}개 중 ${r.dayOffHonored}개",
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                _burdenCard(r.burdens),
+                const SizedBox(height: 12),
+                _unfulfilledCard(r.unfulfilled),
+              ],
+            ]),
           ),
-
-          // 하단 버튼
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
+          if (first != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    side: const BorderSide(color: ThymeColor.text, width: 1.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShiftSwapPage())),
-                  child: const Text(
-                    "이 근무 교대 요청하기",
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text),
-                  ),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ShiftSwapPage(scheduleId: first.scheduleId))),
+                  child: const Text("이 근무 교대 요청하기"),
                 ),
               ),
             ),
-          ),
-        ],
+        ]),
       ),
     );
   }
 
-  // 커스텀 통계 바 차트 컴포넌트
-  Widget _buildStatRow(String title, int myCount, double avgCount, int maxCount) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-            Text("나 $myCount회 · 평균 $avgCount", style: const TextStyle(fontSize: 12, color: ThymeColor.textSub)),
-          ],
-        ),
-        const SizedBox(height: 8),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            double totalWidth = constraints.maxWidth;
-            double myWidth = (myCount / maxCount) * totalWidth;
-            double avgPosition = (avgCount / maxCount) * totalWidth;
+  Widget _rateCard({required bool dark, required String label, required double? rate, required String sub}) => Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(color: dark ? ThymeColor.primary : ThymeColor.surface, borderRadius: BorderRadius.circular(22)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: TextStyle(fontSize: 14, color: dark ? ThymeColor.onPrimarySub : ThymeColor.textSub)),
+          const SizedBox(height: 6),
+          Text(rate == null ? "–" : "${rate.round()}%",
+              style: ThymeTheme.mono(context, size: 34, color: dark ? ThymeColor.accent : ThymeColor.text)),
+          const SizedBox(height: 4),
+          Text(sub, style: TextStyle(fontSize: 13, color: dark ? ThymeColor.onPrimarySub : ThymeColor.textSub)),
+        ]),
+      );
 
+  Widget _burdenCard(List<Burden> burdens) {
+    final maxV = burdens.fold<double>(1, (m, b) => [m, b.mine.toDouble(), b.teamAverage].reduce((a, c) => a > c ? a : c));
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: ThymeColor.surface, borderRadius: BorderRadius.circular(24)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Row(children: [
+          Expanded(child: Text("부담 근무, 나와 팀 평균", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text))),
+          Text("최근 4주 누적", style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+        ]),
+        const SizedBox(height: 14),
+        for (final b in burdens) ...[
+          Row(children: [
+            Expanded(child: Text("${b.label} 근무", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text))),
+            Text("나 ${b.mine}회 · 평균 ${b.teamAverage.toStringAsFixed(1)}", style: ThymeTheme.mono(context, size: 13, color: ThymeColor.textSub)),
+          ]),
+          const SizedBox(height: 8),
+          LayoutBuilder(builder: (context, c) {
+            final w = c.maxWidth;
             return SizedBox(
-              height: 24,
-              child: Stack(
-                alignment: Alignment.centerLeft,
-                children: [
-                  // 배경 바
-                  Container(
-                    width: totalWidth,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: ThymeColor.surfaceSub,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  // 내 근무 횟수 (민트색 바)
-                  if (myCount > 0)
-                    Container(
-                      width: myWidth,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: ThymeColor.accent,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  // 팀 평균선 (세로선)
-                  Positioned(
-                    left: avgPosition,
-                    child: Container(
-                      width: 2,
-                      height: 16,
-                      color: ThymeColor.text,
-                    ),
-                  ),
-                ],
-              ),
+              height: 18,
+              child: Stack(alignment: Alignment.centerLeft, children: [
+                Container(height: 10, decoration: BoxDecoration(color: ThymeColor.surfaceSub, borderRadius: BorderRadius.circular(5))),
+                Container(
+                  height: 10,
+                  width: w * b.mine / maxV,
+                  decoration: BoxDecoration(color: ThymeColor.accent, borderRadius: BorderRadius.circular(5)),
+                ),
+                Positioned(left: (w * b.teamAverage / maxV - 2).clamp(0, w - 4), child: Container(width: 4, height: 18, color: ThymeColor.primary)),
+              ]),
             );
-          },
-        ),
-      ],
+          }),
+          const SizedBox(height: 14),
+        ],
+        const Text("민트 막대가 나, 세로선이 팀 평균이에요.", style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+      ]),
     );
   }
+
+  Widget _unfulfilledCard(List<Unfulfilled> items) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: ThymeColor.surface, borderRadius: BorderRadius.circular(24)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(items.isEmpty ? "원하던 교대에 모두 배정됐어요" : "반영되지 못한 ${items.length}건",
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+          for (final u in items) ...[
+            const SizedBox(height: 12),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Padding(padding: EdgeInsets.only(top: 2), child: ThymeLeaf(size: 20, color: ThymeColor.icon, dashed: true)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text.rich(TextSpan(style: const TextStyle(fontSize: 14, color: ThymeColor.charcoal, height: 1.5), children: [
+                  TextSpan(
+                    text: "${mdw(u.workDate)} ${u.preferredShiftNames.join('·')} 선호 → ${u.assignedShiftName ?? timeRange(u.startTime, u.endTime)} 배정. ",
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: ThymeColor.text),
+                  ),
+                  TextSpan(text: u.reasons.join(" ")),
+                ])),
+              ),
+            ]),
+          ],
+        ]),
+      );
 }

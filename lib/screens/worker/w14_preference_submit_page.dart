@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../core/home_router.dart';
 import '../../core/api_service.dart';
 import '../../core/preference_api.dart';
-import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../models/preference.dart';
 import '../../theme/thyme_theme.dart';
@@ -44,20 +43,17 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
     };
   }
 
-  /// 로그인했으면 서버에 제출하고, 시연 중이면 바로 다음 화면으로
   Future<void> _submit() async {
     widget.draft.priorities = List.of(_preferences);
-    if (Session.instance.isLoggedIn) {
-      setState(() => _submitting = true);
-      try {
-        await PreferenceApi().submit(widget.draft);
-      } on ApiException catch (e) {
-        if (mounted) {
-          setState(() => _submitting = false);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-        }
-        return;
+    setState(() => _submitting = true);
+    try {
+      await PreferenceApi().submit(widget.draft);
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       }
+      return;
     }
     if (!mounted) return;
     // 플로우맵 갈림길 ②: 알바 W14 → H01 알바 홈, 직원 W14 → H02 직원 홈
@@ -65,15 +61,16 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
   }
 
   // 드래그 앤 드롭으로 순서 변경될 때 실행되는 함수
+  // onReorderItem 은 뺀 자리를 이미 반영한 newIndex 를 준다 (옛 onReorder 처럼 1을 빼면 아래로 끌 때 한 칸 덜 내려감)
   void _onReorder(int oldIndex, int newIndex) {
     setState(() {
-      if (newIndex > oldIndex) {
-        newIndex -= 1;
-      }
       final item = _preferences.removeAt(oldIndex);
       _preferences.insert(newIndex, item);
     });
   }
+
+  /// 화살표 버튼: 한 칸 위(-1) / 아래(+1)
+  void _move(int index, int delta) => _onReorder(index, index + delta);
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +93,7 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "내 선호끼리 부딪히면 위에 있는 것부터 지켜요.\n화살표로 순서를 바꿔요.",
+                  "내 선호끼리 부딪히면 위에 있는 것부터 지켜요.\n화살표를 누르거나 길게 눌러 끌어서 순서를 바꿔요.",
                   style: TextStyle(fontSize: 14, color: ThymeColor.textSub, height: 1.5),
                 ),
               ],
@@ -114,7 +111,8 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 itemCount: _preferences.length,
                 onReorderItem: _onReorder, // 플러터 최신 문법 반영! (onReorder -> onReorderItem)
-                buildDefaultDragHandles: true, // 화살표 아이콘 잡고 끌기 허용
+                // 웹·데스크톱에서 자동으로 붙는 끌기 손잡이(≡)가 화살표와 겹쳐서 끈다 → 카드를 길게 눌러 끌기
+                buildDefaultDragHandles: false,
                 proxyDecorator: (Widget child, int index, Animation<double> animation) {
                   // 드래그 중인 아이템 예쁘게 띄워주기
                   return Material(
@@ -128,10 +126,12 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
                   );
                 },
                 itemBuilder: (context, index) {
-                  return Container(
+                  return ReorderableDelayedDragStartListener(
                     key: ValueKey(_preferences[index]),
+                    index: index,
+                    child: Container(
                     margin: const EdgeInsets.only(bottom: 12.0),
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
                     decoration: BoxDecoration(
                       color: ThymeColor.surface,
                       border: Border.all(color: ThymeColor.border),
@@ -173,14 +173,28 @@ class _PreferenceSubmitPageState extends State<PreferenceSubmitPage> {
                           ),
                         ),
                         
-                        // 우측 상하 화살표 (드래그 핸들)
+                        // 우측 위·아래 화살표: 한 칸씩 옮기기 (맨 위·맨 아래면 꺼짐)
                         Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.keyboard_arrow_up, size: 20, color: ThymeColor.disabled),
-                            Icon(Icons.keyboard_arrow_down, size: 20, color: ThymeColor.disabled),
+                            IconButton(
+                              tooltip: "위로",
+                              constraints: const BoxConstraints(minWidth: 44, minHeight: 34),
+                              padding: EdgeInsets.zero,
+                              onPressed: index == 0 ? null : () => _move(index, -1),
+                              icon: const Icon(Icons.keyboard_arrow_up, size: 24),
+                            ),
+                            IconButton(
+                              tooltip: "아래로",
+                              constraints: const BoxConstraints(minWidth: 44, minHeight: 34),
+                              padding: EdgeInsets.zero,
+                              onPressed: index == _preferences.length - 1 ? null : () => _move(index, 1),
+                              icon: const Icon(Icons.keyboard_arrow_down, size: 24),
+                            ),
                           ],
                         ),
                       ],
+                    ),
                     ),
                   );
                 },

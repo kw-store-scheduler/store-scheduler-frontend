@@ -1,3 +1,5 @@
+import 'store.dart' show SkillLevel;
+
 // 희망 제출(W00~W14) 모델. 백엔드 PreferenceController의 요청·응답과 필드 이름이 같다.
 
 /// 날짜×교대 칸 상태. 서버는 가능/선호만 저장하고, 보내지 않은 칸은 불가로 본다
@@ -152,6 +154,14 @@ class PreferenceDraft {
 
   PreferenceLevel? slotAt(DateTime date, int shiftId) => slots[(_dateOnly(date), shiftId)];
 
+  /// 고정 일정을 바꾼 뒤(W11) 그달 칸을 다시 받으면, 새로 잠긴 칸에 골라 둔 값은 지운다
+  void replaceView(PreferenceMonth m) {
+    view = m;
+    for (final c in m.cells.where((c) => c.locked)) {
+      slots.remove((_dateOnly(c.date), c.shiftId));
+    }
+  }
+
   /// 지난달 답이나 이미 낸 값으로 초안을 채운다 (W00 "지난달 답 불러오기")
   void fillFrom(PreferenceMonth m) {
     slots.clear();
@@ -193,4 +203,157 @@ class PreferenceDraft {
           ],
         'restDaysTogether': restDaysTogether,
       };
+}
+
+/// 매주 반복되는 고정 일정 한 건 (GET/PUT /fixed-schedules/my). 서버는 요일마다 한 건씩 저장한다
+class FixedSchedule {
+  const FixedSchedule({required this.weekday, required this.startTime, required this.endTime, required this.label, required this.category, this.validFrom, this.validUntil});
+
+  /// 0 = 월 … 6 = 일
+  final int weekday;
+  final String startTime; // "10:30" 또는 "10:30:00"
+  final String endTime;
+  final String label;
+  final FixedScheduleCategory category;
+
+  /// 둘 다 없으면 계속
+  final DateTime? validFrom;
+  final DateTime? validUntil;
+
+  static const _days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+
+  factory FixedSchedule.fromJson(Map<String, dynamic> j) => FixedSchedule(
+        weekday: _days.indexOf(j['dayOfWeek'] as String),
+        startTime: j['startTime'] as String,
+        endTime: j['endTime'] as String,
+        label: j['label'] as String? ?? '',
+        category: j['category'] == null ? FixedScheduleCategory.other : fromServerEnum(FixedScheduleCategory.values, j['category'] as String),
+        validFrom: j['validFrom'] == null ? null : DateTime.parse(j['validFrom'] as String),
+        validUntil: j['validUntil'] == null ? null : DateTime.parse(j['validUntil'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'dayOfWeek': _days[weekday],
+        'startTime': startTime,
+        'endTime': endTime,
+        'label': label,
+        'category': toServerEnum(category),
+        if (validFrom != null) 'validFrom': _date(validFrom!),
+        if (validUntil != null) 'validUntil': _date(validUntil!),
+      };
+}
+
+/// "이번 달만 예외" 기간 (시험 기간 등, GET/PUT /unavailable-periods/my)
+class UnavailablePeriod {
+  const UnavailablePeriod({required this.startDate, required this.endDate, this.weekdaysOnly = false, this.note});
+
+  final DateTime startDate;
+  final DateTime endDate;
+  final bool weekdaysOnly;
+  final String? note;
+
+  factory UnavailablePeriod.fromJson(Map<String, dynamic> j) => UnavailablePeriod(
+        startDate: DateTime.parse(j['startDate'] as String),
+        endDate: DateTime.parse(j['endDate'] as String),
+        weekdaysOnly: j['weekdaysOnly'] as bool? ?? false,
+        note: j['note'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'startDate': _date(startDate),
+        'endDate': _date(endDate),
+        'weekdaysOnly': weekdaysOnly,
+        if (note != null && note!.isNotEmpty) 'note': note,
+      };
+}
+
+/// 이번 달 근무량 (GET /preferences/my/workload, W06). 계약 주 시간 범위를 그달 시간으로 바꾼 값과 예상 급여(주휴 포함)
+class Workload {
+  const Workload({
+    this.contractMinWeekly,
+    this.contractMaxWeekly,
+    this.contractMinMonthly,
+    this.contractMaxMonthly,
+    required this.hourlyWage,
+    this.minMonthly,
+    this.maxMonthly,
+    this.expectedPayMin,
+    this.expectedPayMax,
+    required this.belowWeeklyHolidayThreshold,
+    required this.exceedsContract,
+  });
+
+  /// 근로계약 주 시간 (없으면 계약 범위 없음)
+  final int? contractMinWeekly;
+  final int? contractMaxWeekly;
+  final int? contractMinMonthly;
+  final int? contractMaxMonthly;
+  final int hourlyWage;
+
+  /// 보낸 값 (안 보내면 계약 범위)
+  final int? minMonthly;
+  final int? maxMonthly;
+  final int? expectedPayMin;
+  final int? expectedPayMax;
+
+  /// 최소가 주 15시간 아래 → 주휴수당이 빠지는 주가 생길 수 있음
+  final bool belowWeeklyHolidayThreshold;
+
+  /// 최대가 계약 상한을 넘음 → 사장님 승인이 필요
+  final bool exceedsContract;
+
+  factory Workload.fromJson(Map<String, dynamic> j) {
+    int? n(String k) => (j[k] as num?)?.toInt();
+    return Workload(
+      contractMinWeekly: n('contractMinWeekly'),
+      contractMaxWeekly: n('contractMaxWeekly'),
+      contractMinMonthly: n('contractMinMonthly'),
+      contractMaxMonthly: n('contractMaxMonthly'),
+      hourlyWage: n('hourlyWage') ?? 0,
+      minMonthly: n('minMonthly'),
+      maxMonthly: n('maxMonthly'),
+      expectedPayMin: n('expectedPayMin'),
+      expectedPayMax: n('expectedPayMax'),
+      belowWeeklyHolidayThreshold: j['belowWeeklyHolidayThreshold'] as bool? ?? false,
+      exceedsContract: j['exceedsContract'] as bool? ?? false,
+    );
+  }
+}
+
+/// 내 역량 한 줄 (GET /my-skills, W05). level = 매니저가 확정한 등급(null이면 등급 없이 보유), requestedLevel = 내가 신청 중인 등급
+class MySkill {
+  const MySkill({required this.skillId, required this.name, this.level, this.requestedLevel});
+
+  final int skillId;
+  final String name;
+  final SkillLevel? level;
+  final SkillLevel? requestedLevel;
+
+  bool get pending => requestedLevel != null;
+
+  factory MySkill.fromJson(Map<String, dynamic> j) => MySkill(
+        skillId: j['skillId'] as int,
+        name: j['name'] as String? ?? '',
+        level: j['level'] == null ? null : fromServerEnum(SkillLevel.values, j['level'] as String),
+        requestedLevel: j['requestedLevel'] == null ? null : fromServerEnum(SkillLevel.values, j['requestedLevel'] as String),
+      );
+}
+
+/// GET /my-skills 전체: 역량 + 혼자 맡길 수 있는 일(매니저가 정함) + 수습 끝나는 날
+class MySkills {
+  const MySkills({required this.skills, required this.permissions, this.probationUntil});
+
+  final List<MySkill> skills;
+
+  /// (이름, 허용 여부)
+  final List<(String, bool)> permissions;
+  final DateTime? probationUntil;
+
+  factory MySkills.fromJson(Map<String, dynamic> j) => MySkills(
+        skills: [for (final s in j['skills'] as List? ?? []) MySkill.fromJson(s as Map<String, dynamic>)],
+        permissions: [
+          for (final p in j['permissions'] as List? ?? []) ((p as Map)['label'] as String? ?? '', p['allowed'] as bool? ?? false),
+        ],
+        probationUntil: j['probationUntil'] == null ? null : DateTime.parse(j['probationUntil'] as String),
+      );
 }

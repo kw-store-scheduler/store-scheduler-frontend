@@ -1,180 +1,278 @@
 import 'package:flutter/material.dart';
-import '../../widgets/thyme_back_button.dart';
+import '../../core/api_service.dart';
 import '../../core/theme.dart';
+import '../../core/worker_api.dart';
+import '../../models/owner.dart';
+import '../../models/worker.dart';
+import '../../theme/thyme_theme.dart';
+import '../../widgets/thyme_step_app_bar.dart';
 import 'h13_fill_vacancy_page.dart';
 
+/// H12 오늘 못 나가요 (결원 신고 1/2). POST /schedules/{scheduleId}/swap-requests
+///
+/// 홈의 오늘 근무에서 오면 [shift]가 정해져 있고, 게시판의 '내 근무 내놓기'에서 오면 앞으로의 내 근무 중에서 고른다.
+/// 신고하면 사장님께 알림이 가고 H13 빈자리 채우기로 넘어간다.
 class AbsenceReportPage extends StatefulWidget {
-  const AbsenceReportPage({super.key});
+  const AbsenceReportPage({super.key, this.shift});
+
+  final DaySchedule? shift;
 
   @override
   State<AbsenceReportPage> createState() => _AbsenceReportPageState();
 }
 
 class _AbsenceReportPageState extends State<AbsenceReportPage> {
-  int _selectedReasonIndex = 0;
-  final TextEditingController _memoController = TextEditingController();
+  List<MyShift>? _upcoming;
+  MyShift? _shift;
+  String? _error;
 
-  final List<String> _reasons = [
-    "갑작스러운 건강 악화 (발열, 몸살 등)",
-    "개인 사정 / 집안 행사",
-    "학교 일정 변경 (시험, 보강 등)",
-    "기타 사유"
-  ];
+  /// null = 근무 전체, 값 = 그 시각부터만 빠짐 ("11:00")
+  String? _partialFrom;
+  AbsenceReason? _reason;
+  final _memo = TextEditingController();
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _memo.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _error = null);
+    try {
+      final now = DateTime.now();
+      final mine = await WorkerApi().mySchedules();
+      // 아직 시작하지 않은 근무만 신고할 수 있다
+      final upcoming = [for (final s in mine) if (_startOf(s.workDate, s.startTime).isAfter(now)) s]
+        ..sort((a, b) => _startOf(a.workDate, a.startTime).compareTo(_startOf(b.workDate, b.startTime)));
+      if (!mounted) return;
+      setState(() {
+        _upcoming = upcoming;
+        _shift = upcoming.where((s) => s.id == widget.shift?.scheduleId).firstOrNull ?? upcoming.firstOrNull;
+      });
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
+
+  static DateTime _startOf(DateTime d, String t) => DateTime(d.year, d.month, d.day, int.parse(t.substring(0, 2)), int.parse(t.substring(3, 5)));
+
+  /// 근무 중간에 빠질 수 있는 정시 (시작 1시간 뒤 ~ 끝 1시간 전)
+  List<String> _partialHours(MyShift s) {
+    final start = int.parse(s.startTime.substring(0, 2));
+    var end = int.parse(s.endTime.substring(0, 2));
+    if (end <= start) end += 24;
+    return [for (var h = start + 1; h < end; h++) '${(h % 24).toString().padLeft(2, '0')}:00'];
+  }
+
+  String _until(MyShift s) {
+    final diff = _startOf(s.workDate, s.startTime).difference(DateTime.now());
+    if (diff.inHours >= 24) return "${diff.inDays}일 뒤";
+    if (diff.inHours >= 1) return "시작 ${diff.inHours}시간 ${diff.inMinutes % 60}분 전";
+    return "시작 ${diff.inMinutes}분 전";
+  }
+
+  Future<void> _submit() async {
+    final s = _shift!;
+    setState(() => _busy = true);
+    try {
+      final request = await WorkerApi().reportAbsence(
+        s.id,
+        category: _reason!,
+        reason: _reason == AbsenceReason.other ? _memo.text.trim() : null,
+        partialFrom: _partialFrom,
+      );
+      if (!mounted) return;
+      // 신고는 되돌릴 수 없으니 뒤로가기로 이 화면에 다시 오지 않게 바꿔 끼운다
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => FillVacancyPage(request: request)));
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final s = _shift;
+    final ready = s != null && _reason != null && (_reason != AbsenceReason.other || _memo.text.trim().isNotEmpty);
     return Scaffold(
       backgroundColor: ThymeColor.bg,
-      appBar: AppBar(
-        backgroundColor: ThymeColor.bg,
-        elevation: 0,
-        leading: ThymeBackButton(size: 20),
-        title: const Text(
-          "결원 신고",
-          style: TextStyle(color: ThymeColor.text, fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
+      appBar: const ThymeStepAppBar(step: 1, total: 2, group: '결원 신고', closeIcon: true),
+      body: SafeArea(
+        child: Column(children: [
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 상단 안내 문구
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: ThymeColor.danger.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.warning_amber_rounded, color: ThymeColor.dangerText),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            "오늘 예정된 근무에 사정이 생기셨나요?\n신고 즉시 점주님과 대타 후보들에게 알림이 갑니다.",
-                            style: TextStyle(fontSize: 13, color: ThymeColor.text.withValues(alpha: 0.8), height: 1.4),
+            child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 24), children: [
+              const Text("오늘 못 나가요", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+              const SizedBox(height: 8),
+              const Text("사유를 고르면 사장님께 바로 알리고, 다음 화면에서 빈자리를 채워요.",
+                  style: TextStyle(fontSize: 15, color: ThymeColor.textSub, height: 1.5)),
+              const SizedBox(height: 20),
+              if (_error != null) ...[
+                Text(_error!, style: const TextStyle(color: ThymeColor.dangerText)),
+                TextButton(onPressed: _load, child: const Text("다시 불러오기")),
+              ] else if (_upcoming == null)
+                const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))
+              else if (s == null)
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(color: ThymeColor.surfaceSub, borderRadius: BorderRadius.circular(16)),
+                  child: const Text("앞으로 잡힌 근무가 없어요.", style: TextStyle(fontSize: 14, color: ThymeColor.textSub)),
+                )
+              else ...[
+                _shiftCard(s),
+                if (_upcoming!.length > 1 && widget.shift == null) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 40,
+                    child: ListView(scrollDirection: Axis.horizontal, children: [
+                      for (final u in _upcoming!.take(10))
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text("${mdw(u.workDate)} ${hourRange(u.startTime, u.endTime)}"),
+                            selected: u.id == s.id,
+                            onSelected: (_) => setState(() {
+                              _shift = u;
+                              _partialFrom = null;
+                            }),
+                            selectedColor: ThymeColor.primary,
+                            labelStyle: TextStyle(color: u.id == s.id ? ThymeColor.onPrimary : ThymeColor.text, fontWeight: FontWeight.bold),
+                            showCheckmark: false,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // 대상 근무 정보 카드
-                  const Text("대상 근무", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.textSub)),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: ThymeColor.surface,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("11월 18일 (수)", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                            SizedBox(height: 4),
-                            Text("오픈 교대 (09:00 - 14:00)", style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
-                          ],
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: ThymeColor.text,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text("근무 중", style: TextStyle(color: ThymeColor.onPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // 사유 선택 라디오 리스트
-                  const Text("불참 사유를 선택해주세요", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.textSub)),
-                  const SizedBox(height: 12),
-                  ...List.generate(_reasons.length, (index) {
-                    bool isSelected = _selectedReasonIndex == index;
-                    return GestureDetector(
-                      onTap: () => setState(() => _selectedReasonIndex = index),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: ThymeColor.surface,
-                          border: Border.all(
-                            color: isSelected ? ThymeColor.text : ThymeColor.border,
-                            width: isSelected ? 2 : 1,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                              color: isSelected ? ThymeColor.text : ThymeColor.disabled,
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              _reasons[index],
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                color: ThymeColor.text,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 24),
-
-                  // 상세 메모 입력
-                  const Text("상세 메모 (선택)", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.textSub)),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _memoController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: "점주님께 전달할 특이사항이 있다면 적어주세요.",
-                      hintStyle: TextStyle(color: ThymeColor.disabled, fontSize: 14),
-                      filled: true,
-                      fillColor: ThymeColor.surface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
+                    ]),
                   ),
                 ],
-              ),
+                const SizedBox(height: 24),
+                _label("얼마나 빠지나요"),
+                Row(children: [
+                  Expanded(child: _choice("근무 전체", null, _partialFrom == null, () => setState(() => _partialFrom = null))),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _choice(
+                      _partialFrom == null ? "일부만" : "일부만 (${int.parse(_partialFrom!.substring(0, 2))}시부터)",
+                      null,
+                      _partialFrom != null,
+                      _partialHours(s).isEmpty ? null : () => setState(() => _partialFrom ??= _partialHours(s).first),
+                    ),
+                  ),
+                ]),
+                if (_partialFrom != null) ...[
+                  const SizedBox(height: 10),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (final h in _partialHours(s))
+                      ChoiceChip(
+                        label: Text("${int.parse(h.substring(0, 2))}시부터"),
+                        selected: h == _partialFrom,
+                        onSelected: (_) => setState(() => _partialFrom = h),
+                        selectedColor: ThymeColor.selectedSoft,
+                        showCheckmark: false,
+                      ),
+                  ]),
+                ],
+                const SizedBox(height: 24),
+                _label("사유"),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 2.4,
+                  children: [
+                    for (final (r, title) in [
+                      (AbsenceReason.sick, "아파요"),
+                      (AbsenceReason.familyEvent, "가족 경조사"),
+                      (AbsenceReason.personal, "개인 사정"),
+                      (AbsenceReason.other, "기타"),
+                    ])
+                      _choice(title, r == AbsenceReason.other ? "직접 적기" : r.label, _reason == r, () => setState(() => _reason = r)),
+                  ],
+                ),
+                if (_reason == AbsenceReason.other) ...[
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _memo,
+                    maxLength: 100,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(hintText: "사장님께 전할 사유"),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                const Text('사유는 사장님만 봐요. 동료에게는 "사정이 생겼어요"로만 보여요.',
+                    style: TextStyle(fontSize: 13, color: ThymeColor.textSub, height: 1.5)),
+              ],
+            ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(onPressed: ready && !_busy ? _submit : null, child: Text(_busy ? "알리는 중…" : "신고하고 빈자리 채우기")),
             ),
           ),
-
-          // 하단 신고하기 버튼
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: SizedBox(
-                width: double.infinity,
-                // POST /schedules/{scheduleId}/swap-requests 연결할 자리 → H13 빈자리 채우기
-                child: FilledButton(onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const FillVacancyPage()));
-                  }, child: Text("결원 신고 및 대타 찾기 요청")),
-              ),
-            ),
-          ),
-        ],
+        ]),
       ),
     );
   }
+
+  Widget _shiftCard(MyShift s) => Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(color: ThymeColor.surface, borderRadius: BorderRadius.circular(20)),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text("${mdw(s.workDate)} · ${_until(s)}", style: const TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+              const SizedBox(height: 4),
+              Text(timeRange(s.startTime, s.endTime), style: ThymeTheme.mono(context, size: 26)),
+            ]),
+          ),
+          const Icon(Icons.circle, size: 8, color: ThymeColor.danger),
+          const SizedBox(width: 6),
+          const Text("빠질 근무", style: TextStyle(fontWeight: FontWeight.bold, color: ThymeColor.dangerText)),
+        ]),
+      );
+
+  Widget _label(String t) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Text(t, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.textSub)),
+      );
+
+  Widget _choice(String title, String? sub, bool selected, VoidCallback? onTap) => Material(
+        color: selected ? ThymeColor.primary : ThymeColor.surface,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 56),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: selected ? ThymeColor.primary : ThymeColor.border),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: sub == null ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: onTap == null ? ThymeColor.disabled : (selected ? ThymeColor.onPrimary : ThymeColor.text))),
+                if (sub != null)
+                  Text(sub, style: TextStyle(fontSize: 13, color: selected ? ThymeColor.onPrimarySub : ThymeColor.textSub)),
+              ],
+            ),
+          ),
+        ),
+      );
 }
