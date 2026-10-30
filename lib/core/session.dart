@@ -58,6 +58,13 @@ class Session {
     return refreshMe();
   }
 
+  /// 비밀번호 변경. 서버가 모든 기기의 리프레시 토큰을 지우므로(다른 기기 로그아웃) 이 기기는 새 비밀번호로 다시 로그인해 둔다
+  Future<void> changePassword(String current, String next) async {
+    await _api.patch('/api/users/me/password', data: {'currentPassword': current, 'newPassword': next});
+    final username = me?.username;
+    if (username != null) await login(username, next);
+  }
+
   Future<Me> refreshMe() async {
     final m = Me.fromJson(await _api.get('/api/users/me') as Map<String, dynamic>);
     me = m;
