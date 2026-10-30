@@ -72,6 +72,11 @@ class _FakeServer implements HttpClientAdapter {
             },
           },
         ('GET' || 'PUT', '/api/stores/7/unavailable-periods/my') => [],
+        // 이미 낸 휴무 2건 (필수 1 · 희망 1, 대안 순서 있음) → W03 카드가 그려진다
+        ('GET', '/api/stores/7/day-offs/my') => [
+            {'id': 1, 'date': '2026-11-07', 'type': 'MUST', 'reason': '가족 행사', 'fallbacks': [], 'downgraded': false},
+            {'id': 2, 'date': '2026-11-15', 'type': 'PREFER', 'reason': '시험 공부', 'fallbacks': ['AFTERNOON_OFF', 'SWAP_DAY'], 'downgraded': false},
+          ],
         _ => throw StateError('예상하지 못한 요청: $method $path'),
       };
 
@@ -139,12 +144,16 @@ void main() {
     expect(find.text('선호'), findsNWidgets(2));
 
     await tapNext(tester, '다음'); // W02
+    // W03: 서버에 있던 휴무 2건이 그대로 보이고, 고치지 않았으니 다시 저장하지 않는다
+    expect(find.text('필수 · 순위 없이 항상 지켜져요'), findsOneWidget);
+    expect(find.textContaining('1순위 오후만 쉬기 → 2순위 다른 날과 교환'), findsOneWidget);
     await tapNext(tester, '다음'); // W03
     await tapNext(tester, '다음'); // W06
     await tapNext(tester, '다음'); // W05
     await tapNext(tester, '신청 제출'); // W14
     expect(find.byType(PartTimerHomePage), findsOneWidget);
 
+    expect(server.requests.where((r) => r.$2.contains('/day-offs') && r.$1 != 'GET'), isEmpty);
     final put = server.requests.singleWhere((r) => r.$1 == 'PUT' && r.$2.contains('/preferences/my'));
     expect(put.$2, endsWith('/api/stores/7/preferences/my?month=2026-11'));
     final body = put.$3 as Map<String, dynamic>;
