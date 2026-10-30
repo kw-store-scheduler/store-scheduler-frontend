@@ -1,3 +1,5 @@
+import 'store.dart' show SkillLevel;
+
 // 희망 제출(W00~W14) 모델. 백엔드 PreferenceController의 요청·응답과 필드 이름이 같다.
 
 /// 날짜×교대 칸 상태. 서버는 가능/선호만 저장하고, 보내지 않은 칸은 불가로 본다
@@ -316,4 +318,42 @@ class Workload {
       exceedsContract: j['exceedsContract'] as bool? ?? false,
     );
   }
+}
+
+/// 내 역량 한 줄 (GET /my-skills, W05). level = 매니저가 확정한 등급(null이면 등급 없이 보유), requestedLevel = 내가 신청 중인 등급
+class MySkill {
+  const MySkill({required this.skillId, required this.name, this.level, this.requestedLevel});
+
+  final int skillId;
+  final String name;
+  final SkillLevel? level;
+  final SkillLevel? requestedLevel;
+
+  bool get pending => requestedLevel != null;
+
+  factory MySkill.fromJson(Map<String, dynamic> j) => MySkill(
+        skillId: j['skillId'] as int,
+        name: j['name'] as String? ?? '',
+        level: j['level'] == null ? null : fromServerEnum(SkillLevel.values, j['level'] as String),
+        requestedLevel: j['requestedLevel'] == null ? null : fromServerEnum(SkillLevel.values, j['requestedLevel'] as String),
+      );
+}
+
+/// GET /my-skills 전체: 역량 + 혼자 맡길 수 있는 일(매니저가 정함) + 수습 끝나는 날
+class MySkills {
+  const MySkills({required this.skills, required this.permissions, this.probationUntil});
+
+  final List<MySkill> skills;
+
+  /// (이름, 허용 여부)
+  final List<(String, bool)> permissions;
+  final DateTime? probationUntil;
+
+  factory MySkills.fromJson(Map<String, dynamic> j) => MySkills(
+        skills: [for (final s in j['skills'] as List? ?? []) MySkill.fromJson(s as Map<String, dynamic>)],
+        permissions: [
+          for (final p in j['permissions'] as List? ?? []) ((p as Map)['label'] as String? ?? '', p['allowed'] as bool? ?? false),
+        ],
+        probationUntil: j['probationUntil'] == null ? null : DateTime.parse(j['probationUntil'] as String),
+      );
 }

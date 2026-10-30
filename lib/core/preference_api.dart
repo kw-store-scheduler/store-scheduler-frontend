@@ -1,4 +1,5 @@
 import '../models/preference.dart';
+import '../models/store.dart' show SkillLevel;
 import 'api_service.dart';
 import 'session.dart';
 
@@ -61,6 +62,14 @@ class PreferenceApi {
         'minMonthlyHours': ?min,
         'maxMonthlyHours': ?max,
       }) as Map<String, dynamic>);
+
+  /// W05 내 역량
+  Future<MySkills> mySkills() async => MySkills.fromJson(await _api.get('$_store/my-skills') as Map<String, dynamic>);
+
+  /// 역량 등급 신청 (매니저가 확정하기 전까지는 배치에 안 쓰인다). 확정 등급과 같은 값이면 신청 취소
+  Future<void> requestSkillLevels(Map<int, SkillLevel> levels) => _api.put('$_store/my-skills', data: [
+        for (final e in levels.entries) {'skillId': e.key, 'level': toServerEnum(e.value)},
+      ]);
 
   /// W14 "신청 제출". 다시 내면 그달 칸을 통째로 바꾼다
   Future<PreferenceMonth> submit(PreferenceDraft draft) async => PreferenceMonth.fromJson(

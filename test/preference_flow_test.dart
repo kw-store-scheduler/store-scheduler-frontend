@@ -78,6 +78,19 @@ class _FakeServer implements HttpClientAdapter {
             'hourlyWage': 10320, 'minMonthly': 64, 'maxMonthly': 86, 'expectedPayMin': 660480, 'expectedPayMax': 1065024,
             'belowWeeklyHolidayThreshold': true, 'exceedsContract': true,
           },
+        // 역량: 영어 확정(중), 중국어 신청 중(상), 혼자 오픈만 가능, 수습 11/30까지
+        ('GET', '/api/stores/7/my-skills') => {
+            'skills': [
+              {'skillId': 1, 'name': '영어', 'level': 'MID', 'requestedLevel': null, 'status': 'CONFIRMED'},
+              {'skillId': 2, 'name': '중국어', 'level': 'NONE', 'requestedLevel': 'HIGH', 'status': 'PENDING'},
+            ],
+            'permissions': [
+              {'code': 'SOLO_OPEN', 'label': '혼자 오픈', 'allowed': true},
+              {'code': 'ORDERING', 'label': '발주 가능자', 'allowed': false},
+            ],
+            'probationUntil': '2026-11-30',
+          },
+        ('PUT', '/api/stores/7/my-skills') => {'skills': [], 'permissions': []},
         // 이미 낸 휴무 2건 (필수 1 · 희망 1, 대안 순서 있음) → W03 카드가 그려진다
         ('GET', '/api/stores/7/day-offs/my') => [
             {'id': 1, 'date': '2026-11-07', 'type': 'MUST', 'reason': '가족 행사', 'fallbacks': [], 'downgraded': false},
@@ -158,7 +171,19 @@ void main() {
     expect(find.text('주 15–20시간 · 시급 ₩10,320'), findsOneWidget);
     expect(find.text('64h'), findsOneWidget);
     await tapNext(tester, '다음'); // W06
+    // W05: 서버 역량이 그려지고, 영어를 '상'으로 바꾸면 그것만 신청한다
+    expect(find.text('확인 대기'), findsOneWidget);
+    expect(find.text('~ 11/30'), findsOneWidget);
+    await tester.tap(find.text('상').first);
+    await tester.pump();
     await tapNext(tester, '다음'); // W05
+    final skills = server.requests.singleWhere((r) => r.$1 == 'PUT' && r.$2.contains('/my-skills'));
+    expect(skills.$3, [
+      {'skillId': 1, 'level': 'HIGH'},
+    ]);
+    // '역량을 신청했어요' 스낵바가 W14 버튼을 덮으니 닫힐 때까지
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
     await tapNext(tester, '신청 제출'); // W14
     expect(find.byType(PartTimerHomePage), findsOneWidget);
 
