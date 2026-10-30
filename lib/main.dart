@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/api_service.dart';
+import 'core/home_router.dart';
 import 'core/push_service.dart';
 import 'core/session.dart';
 import 'screens/common/a01_splash_page.dart';
@@ -22,7 +23,7 @@ Future<void> main() async {
     handling = true;
     await Session.instance.logout();
     navigatorKey.currentState?.pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginPage(notice: "로그인이 만료됐어요. 다시 로그인해 주세요.")),
+      MaterialPageRoute(builder: (_) => rootPage(const LoginPage(notice: "로그인이 만료됐어요. 다시 로그인해 주세요."))),
       (route) => false,
     );
     handling = false;

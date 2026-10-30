@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/user.dart';
+import 'session.dart';
 import '../screens/common/a06_role_selection_page.dart';
 import '../screens/owner/o01_store_registration_page.dart';
 import '../screens/owner/p01_owner_home_page.dart';
@@ -32,6 +33,11 @@ Widget homeFor(Me me) {
       return const RoleSelectionPage();
   }
 }
+
+/// 근로자 홈: 지금 보고 있는 매장에서 직원이면 H02, 알바면 H01
+Widget workerHome() => Session.instance.currentMembership?.employmentType == EmploymentType.fullTime
+    ? const EmployeeHomePage()
+    : const PartTimerHomePage();
 
 /// 첫 화면으로 바꿔 끼운다 (그 아래 화면은 모두 지운다)
 void goHome(BuildContext context, Me me) => resetTo(context, homeFor(me));

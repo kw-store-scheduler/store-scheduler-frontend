@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../widgets/thyme_back_button.dart';
-import '../../core/home_router.dart';
 import '../../core/theme.dart';
+import '../../widgets/thyme_worker_tab_bar.dart';
 import '../../theme/thyme_theme.dart';
-import 'h01_part_timer_home_page.dart'; // 처리 후 홈으로 직행!
 
 class CoverAcceptPage extends StatelessWidget {
   const CoverAcceptPage({super.key});
@@ -123,7 +122,7 @@ class CoverAcceptPage extends StatelessWidget {
                     flex: 2,
                     child: ThymeFinalButton(label: "수락하기", onPressed: () {
                         // 수락 완료 후 홈으로 복귀
-                        resetTo(context, const PartTimerHomePage());
+                        ThymeWorkerTabBar.go(context, WorkerTab.home);
                       }),
                   ),
                 ],

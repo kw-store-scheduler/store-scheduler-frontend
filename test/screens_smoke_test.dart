@@ -34,6 +34,7 @@ import 'package:thyme_frontend/screens/worker/w11_fixed_schedule_page.dart';
 import 'package:thyme_frontend/screens/worker/w00_load_last_month_page.dart';
 import 'package:thyme_frontend/screens/worker/h06_my_info_page.dart';
 import 'package:thyme_frontend/screens/worker/w07_my_schedule_page.dart';
+import 'package:thyme_frontend/screens/worker/h03_notice_task_page.dart';
 import 'package:thyme_frontend/screens/worker/h04_notification_page.dart';
 import 'package:thyme_frontend/screens/worker/w10_preference_report_page.dart';
 import 'package:thyme_frontend/screens/worker/w14_preference_submit_page.dart';
@@ -118,6 +119,7 @@ void main() {
     'LoadLastMonthPage': () => const LoadLastMonthPage(),
     'MyInfoPage': () => const MyInfoPage(),
     'MySchedulePage': () => const MySchedulePage(),
+    'NoticeTaskPage': () => const NoticeTaskPage(),
     'NotificationPage': () => const NotificationPage(),
     'PreferenceReportPage': () => const PreferenceReportPage(),
     'PreferenceSubmitPage': () => PreferenceSubmitPage(draft: _draft()),
