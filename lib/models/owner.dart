@@ -208,9 +208,12 @@ class EmployeeInfo {
     required this.name,
     this.nickname,
     this.hourlyWage,
+    this.probationWage,
+    this.deduction = PayDeduction.none,
     required this.status,
     this.employmentType,
     this.startDate,
+    this.resignedOn,
     required this.minor,
     this.requestedAt,
     this.skills = const [],
@@ -220,9 +223,16 @@ class EmployeeInfo {
   final String name;
   final String? nickname;
   final int? hourlyWage;
+
+  /// 수습 시급 (수습 기간·시작 3개월까지만 적용). null = 감액 없음
+  final int? probationWage;
+  final PayDeduction deduction;
   final String status;
   final EmploymentType? employmentType;
   final DateTime? startDate;
+
+  /// 승인된 직원이면 퇴사 예정일(마지막 근무일), 퇴사한 직원이면 퇴사일
+  final DateTime? resignedOn;
   final bool minor;
   final DateTime? requestedAt;
   final List<String> skills;
@@ -234,9 +244,12 @@ class EmployeeInfo {
         name: j['name'] as String? ?? '',
         nickname: j['nickname'] as String?,
         hourlyWage: j['hourlyWage'] as int?,
+        probationWage: j['probationWage'] as int?,
+        deduction: PayDeduction.fromJson(j['deduction']),
         status: j['status'] as String? ?? '',
         employmentType: _employment(j['employmentType']),
         startDate: _date(j['startDate']),
+        resignedOn: _date(j['resignedOn']),
         minor: j['minor'] as bool? ?? false,
         requestedAt: _date(j['requestedAt']),
         skills: [for (final s in j['skills'] as List? ?? []) s as String],
