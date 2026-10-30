@@ -123,7 +123,12 @@ void main() {
     'NotificationPage': () => const NotificationPage(),
     'PreferenceReportPage': () => const PreferenceReportPage(),
     'PreferenceSubmitPage': () => PreferenceSubmitPage(draft: _draft()),
-    'FillVacancyPage': () => const FillVacancyPage(),
+    'FillVacancyPage': () => FillVacancyPage(
+          request: SwapRequestInfo.fromJson({
+            'id': 1, 'workDate': '2026-11-20', 'startTime': '09:00:00', 'endTime': '14:00:00',
+            'requesterName': '유나', 'reasonCategory': 'PERSONAL', 'status': 'REQUESTED',
+          }),
+        ),
     'RestDayPreferencePage': () => RestDayPreferencePage(draft: _draft()),
     'DateShiftPage': () => DateShiftPage(draft: _draft()),
     'ShiftSwapPage': () => const ShiftSwapPage(),
