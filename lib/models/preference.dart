@@ -152,6 +152,14 @@ class PreferenceDraft {
 
   PreferenceLevel? slotAt(DateTime date, int shiftId) => slots[(_dateOnly(date), shiftId)];
 
+  /// 고정 일정을 바꾼 뒤(W11) 그달 칸을 다시 받으면, 새로 잠긴 칸에 골라 둔 값은 지운다
+  void replaceView(PreferenceMonth m) {
+    view = m;
+    for (final c in m.cells.where((c) => c.locked)) {
+      slots.remove((_dateOnly(c.date), c.shiftId));
+    }
+  }
+
   /// 지난달 답이나 이미 낸 값으로 초안을 채운다 (W00 "지난달 답 불러오기")
   void fillFrom(PreferenceMonth m) {
     slots.clear();
@@ -192,5 +200,67 @@ class PreferenceDraft {
             for (final e in shiftAttitudes.entries) {'shiftId': e.key, 'attitude': toServerEnum(e.value)},
           ],
         'restDaysTogether': restDaysTogether,
+      };
+}
+
+/// 매주 반복되는 고정 일정 한 건 (GET/PUT /fixed-schedules/my). 서버는 요일마다 한 건씩 저장한다
+class FixedSchedule {
+  const FixedSchedule({required this.weekday, required this.startTime, required this.endTime, required this.label, required this.category, this.validFrom, this.validUntil});
+
+  /// 0 = 월 … 6 = 일
+  final int weekday;
+  final String startTime; // "10:30" 또는 "10:30:00"
+  final String endTime;
+  final String label;
+  final FixedScheduleCategory category;
+
+  /// 둘 다 없으면 계속
+  final DateTime? validFrom;
+  final DateTime? validUntil;
+
+  static const _days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+
+  factory FixedSchedule.fromJson(Map<String, dynamic> j) => FixedSchedule(
+        weekday: _days.indexOf(j['dayOfWeek'] as String),
+        startTime: j['startTime'] as String,
+        endTime: j['endTime'] as String,
+        label: j['label'] as String? ?? '',
+        category: j['category'] == null ? FixedScheduleCategory.other : fromServerEnum(FixedScheduleCategory.values, j['category'] as String),
+        validFrom: j['validFrom'] == null ? null : DateTime.parse(j['validFrom'] as String),
+        validUntil: j['validUntil'] == null ? null : DateTime.parse(j['validUntil'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'dayOfWeek': _days[weekday],
+        'startTime': startTime,
+        'endTime': endTime,
+        'label': label,
+        'category': toServerEnum(category),
+        if (validFrom != null) 'validFrom': _date(validFrom!),
+        if (validUntil != null) 'validUntil': _date(validUntil!),
+      };
+}
+
+/// "이번 달만 예외" 기간 (시험 기간 등, GET/PUT /unavailable-periods/my)
+class UnavailablePeriod {
+  const UnavailablePeriod({required this.startDate, required this.endDate, this.weekdaysOnly = false, this.note});
+
+  final DateTime startDate;
+  final DateTime endDate;
+  final bool weekdaysOnly;
+  final String? note;
+
+  factory UnavailablePeriod.fromJson(Map<String, dynamic> j) => UnavailablePeriod(
+        startDate: DateTime.parse(j['startDate'] as String),
+        endDate: DateTime.parse(j['endDate'] as String),
+        weekdaysOnly: j['weekdaysOnly'] as bool? ?? false,
+        note: j['note'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'startDate': _date(startDate),
+        'endDate': _date(endDate),
+        'weekdaysOnly': weekdaysOnly,
+        if (note != null && note!.isNotEmpty) 'note': note,
       };
 }

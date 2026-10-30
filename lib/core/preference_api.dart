@@ -38,6 +38,23 @@ class PreferenceApi {
   Future<PreferenceMonth> draftFromPrevious(DateTime month) async => PreferenceMonth.fromJson(
       await _api.get('$_base/my/draft', query: {'month': monthParam(month)}) as Map<String, dynamic>);
 
+  String get _store => '/api/stores/${_session.requireStoreId()}';
+
+  /// W11 고정 일정 (요일마다 한 건)
+  Future<List<FixedSchedule>> fixedSchedules() async =>
+      [for (final j in await _api.get('$_store/fixed-schedules/my') as List) FixedSchedule.fromJson(j as Map<String, dynamic>)];
+
+  /// 통째로 바꾼다 (빈 목록이면 모두 삭제)
+  Future<void> replaceFixedSchedules(List<FixedSchedule> list) =>
+      _api.put('$_store/fixed-schedules/my', data: [for (final f in list) f.toJson()]);
+
+  /// W11 "이번 달만 예외" 기간
+  Future<List<UnavailablePeriod>> unavailablePeriods() async =>
+      [for (final j in await _api.get('$_store/unavailable-periods/my') as List) UnavailablePeriod.fromJson(j as Map<String, dynamic>)];
+
+  Future<void> replaceUnavailablePeriods(List<UnavailablePeriod> list) =>
+      _api.put('$_store/unavailable-periods/my', data: [for (final p in list) p.toJson()]);
+
   /// W14 "신청 제출". 다시 내면 그달 칸을 통째로 바꾼다
   Future<PreferenceMonth> submit(PreferenceDraft draft) async => PreferenceMonth.fromJson(
       await _api.put('$_base/my', query: {'month': monthParam(draft.month)}, data: draft.toJson()) as Map<String, dynamic>);

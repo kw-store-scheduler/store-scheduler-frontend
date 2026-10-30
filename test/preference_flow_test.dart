@@ -55,6 +55,23 @@ class _FakeServer implements HttpClientAdapter {
         // 지난달 답: 11/3·11/4 오픈 선호
         ('GET', '/api/stores/7/preferences/my/draft') => month(levels: {'3/11': 'PREFERRED', '4/11': 'PREFERRED'}),
         ('PUT', '/api/stores/7/preferences/my') => month(),
+        ('GET' || 'PUT', '/api/stores/7/fixed-schedules/my') => [],
+        // 제출 뒤 알바 홈 (H01)
+        ('GET', '/api/stores/7/home/worker') => {
+            'storeName': '구시대 커피',
+            'employeeName': '유나',
+            'date': '2026-10-30',
+            'today': {'date': '2026-10-30'},
+            'coworkers': [],
+            'week': [],
+            'swapOffers': [],
+            'monthlyPay': {'totalHours': 0, 'totalPay': 0, 'weeklyHolidayPay': 0},
+            'nextMonthPreferences': {
+              'month': '2026-11', 'deadline': '2026-10-28', 'daysUntilDeadline': -2,
+              'submittedCount': 1, 'employeeCount': 3, 'submittedByMe': true,
+            },
+          },
+        ('GET' || 'PUT', '/api/stores/7/unavailable-periods/my') => [],
         _ => throw StateError('예상하지 못한 요청: $method $path'),
       };
 
@@ -88,12 +105,21 @@ void main() {
   tearDown(Session.instance.logout);
 
   /// 버튼을 눌러 다음 화면으로. API를 부르는 버튼이면 실제 비동기가 끝날 때까지 기다린다
+  Future<void> settle(WidgetTester tester) async {
+    // 저장·다시 받기처럼 요청이 여러 번 이어지는 화면도 있다 → 실제 시간을 몇 번 흘려 준다
+    for (var i = 0; i < 5; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+  }
+
   Future<void> tapNext(WidgetTester tester, String label) async {
+    await settle(tester); // 화면이 처음 불러오는 값(W11 고정 일정 등)이 와야 버튼이 켜진다
     final button = find.text(label);
     await tester.ensureVisible(button);
     await tester.tap(button);
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
-    await tester.pumpAndSettle();
+    await settle(tester);
   }
 
   testWidgets('로그인한 알바가 지난달 답을 불러와 고치고 제출한다', (tester) async {
@@ -119,7 +145,7 @@ void main() {
     await tapNext(tester, '신청 제출'); // W14
     expect(find.byType(PartTimerHomePage), findsOneWidget);
 
-    final put = server.requests.singleWhere((r) => r.$1 == 'PUT');
+    final put = server.requests.singleWhere((r) => r.$1 == 'PUT' && r.$2.contains('/preferences/my'));
     expect(put.$2, endsWith('/api/stores/7/preferences/my?month=2026-11'));
     final body = put.$3 as Map<String, dynamic>;
     expect(body['slots'], [
@@ -137,6 +163,9 @@ void main() {
     await pumpScreen(tester, LoadLastMonthPage(month: DateTime(2026, 11)));
     await tapNext(tester, '시작하기'); // '지난달 답 불러오기'가 기본 선택
     expect(find.text('지난달에 낸 희망이 없어서 처음부터 써요.'), findsOneWidget);
+    // 안내 스낵바가 '다음' 버튼을 덮고 있으니 닫힐 때까지 기다린다
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
     await tapNext(tester, '다음'); // W11 → W02
     expect(find.text('선호'), findsOneWidget); // 범례만 (불러온 칸 없음)
   });
