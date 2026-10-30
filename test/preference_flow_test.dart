@@ -184,6 +184,9 @@ void main() {
     // '역량을 신청했어요' 스낵바가 W14 버튼을 덮으니 닫힐 때까지
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
+    // W14: 1순위 '희망 휴무'의 아래 화살표 → 선호 교대와 자리 바꿈 (맨 위의 위 화살표는 꺼져 있음)
+    await tester.tap(find.byTooltip('아래로').first);
+    await tester.pump();
     await tapNext(tester, '신청 제출'); // W14
     expect(find.byType(PartTimerHomePage), findsOneWidget);
 
@@ -197,7 +200,7 @@ void main() {
     expect(body['maxWeekendShifts'], 2);
     expect(body['minMonthlyHours'], 64);
     expect(body['maxMonthlyHours'], 86);
-    expect(body['priorities'], ['DAY_OFF', 'SHIFT', 'WEEKEND', 'HOURS', 'RHYTHM']);
+    expect(body['priorities'], ['SHIFT', 'DAY_OFF', 'WEEKEND', 'HOURS', 'RHYTHM']);
   });
 
   testWidgets('첫 달이라 지난달 답이 없으면 W00 에서 안내하고 빈 초안으로 이어 간다', (tester) async {
