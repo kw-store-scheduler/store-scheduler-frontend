@@ -51,6 +51,29 @@ class OwnerApi {
 
   Future<void> reject(int employeeId) => _api.post('$_store/employees/$employeeId/reject');
 
+  /// 승인된 직원 한 명 (수습 시급·공제·퇴사 예정일은 프로필 응답에 없어서 목록에서 찾는다)
+  Future<EmployeeInfo?> employee(int employeeId) async => (await employees()).where((e) => e.id == employeeId).firstOrNull;
+
+  /// 수습 시급·공제 설정. 보낸 값으로 통째로 바뀐다 (probationWage 가 null 이면 수습 감액 해제).
+  /// 수습 시급은 1년 이상 계약 · 단순노무 아님일 때만 받는다. 이 두 값은 서버에 저장되지 않아 매번 보낸다
+  Future<EmployeeInfo> updatePaySettings(int employeeId,
+          {required PayDeduction deduction, int? probationWage, bool contractOneYearOrMore = false, bool simpleLabor = false}) async =>
+      EmployeeInfo.fromJson(await _api.put('$_store/employees/$employeeId/pay-settings', data: {
+        'deduction': deduction.json,
+        'probationWage': probationWage,
+        'contractOneYearOrMore': contractOneYearOrMore,
+        'simpleLabor': simpleLabor,
+      }) as Map<String, dynamic>);
+
+  /// 퇴사 처리. 마지막 근무일이 미래면 퇴사 예정(그날까지 앱 사용). 그 뒤 근무는 바로 지워진다 → 지운 근무 수
+  Future<int> resign(int employeeId, DateTime lastWorkDate) async {
+    final res = await _api.post('$_store/employees/$employeeId/resign', data: {'lastWorkDate': dateParam(lastWorkDate)});
+    return (res['removedShifts'] as num?)?.toInt() ?? 0;
+  }
+
+  /// 퇴사 예정 취소 (지워진 근무는 돌아오지 않는다)
+  Future<void> cancelResignation(int employeeId) => _api.delete('$_store/employees/$employeeId/resign');
+
   Future<void> updateWage(int employeeId, int hourlyWage) => _api.patch('$_store/employees/$employeeId', data: {'hourlyWage': hourlyWage});
 
   Future<List<LeaveRequestInfo>> leaves() async => _list(await _api.get('$_store/leaves'), LeaveRequestInfo.fromJson);

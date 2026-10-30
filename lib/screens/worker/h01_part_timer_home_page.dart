@@ -175,6 +175,11 @@ class _PartTimerHomePageState extends State<PartTimerHomePage> {
                   ),
                   const SizedBox(height: 4),
                   Text(won(h.monthPay), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: ThymeColor.accent)),
+                  if (h.monthDeduction > 0) ...[
+                    const SizedBox(height: 4),
+                    Text("예상 공제 ${won(h.monthDeduction)} · 예상 실수령 ${won(h.monthNetPay)}",
+                        style: const TextStyle(fontSize: 13, color: ThymeColor.onPrimarySub)),
+                  ],
                 ]),
               ),
               const Text("내 정보 →", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.onPrimary)),

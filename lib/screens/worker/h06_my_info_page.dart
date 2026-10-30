@@ -8,6 +8,7 @@ import '../../models/owner.dart';
 import '../../models/worker.dart';
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_leaf.dart';
+import '../../widgets/thyme_password_sheet.dart';
 import '../../widgets/thyme_worker_tab_bar.dart';
 import '../common/a03_login_page.dart'; // 로그아웃
 import 'j01_store_code_page.dart'; // 다른 매장 추가
@@ -125,6 +126,7 @@ class _MyInfoPageState extends State<MyInfoPage> {
                   onChanged: _setPush,
                   title: const Text("알림 받기", style: TextStyle(fontSize: 15, color: ThymeColor.text)),
                 ),
+                _menu("비밀번호 바꾸기", () => showPasswordChangeSheet(context)),
                 _menu("고객센터 · 약관", null),
               ]),
             ],

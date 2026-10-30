@@ -55,6 +55,11 @@ class _LoginPageState extends State<LoginPage> {
       setState(() => _error = "아이디와 비밀번호를 입력해 주세요.");
       return;
     }
+    // 서버도 8자 미만 가입은 막는다 (AuthController @Size)
+    if (_signup && password.length < 8) {
+      setState(() => _error = "비밀번호는 8자 이상으로 정해 주세요.");
+      return;
+    }
     if (_signup && password != _passwordConfirm.text) {
       setState(() => _error = "비밀번호가 서로 달라요.");
       return;
@@ -134,7 +139,7 @@ class _LoginPageState extends State<LoginPage> {
                       obscureText: true,
                       textInputAction: _signup ? TextInputAction.next : TextInputAction.done,
                       autofillHints: [_signup ? AutofillHints.newPassword : AutofillHints.password],
-                      decoration: const InputDecoration(hintText: "비밀번호"),
+                      decoration: InputDecoration(hintText: _signup ? "비밀번호 (8자 이상)" : "비밀번호"),
                       onSubmitted: (_) => _signup ? null : _submit(),
                     ),
                     if (_signup) ...[

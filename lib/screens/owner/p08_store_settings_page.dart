@@ -11,6 +11,7 @@ import '../../models/store.dart';
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_owner_header.dart';
 import '../../widgets/thyme_owner_tab_bar.dart';
+import '../../widgets/thyme_password_sheet.dart';
 import '../common/a03_login_page.dart';
 import 'm01_worker_approval_page.dart';
 import 'o02_schedule_cycle_page.dart';
@@ -22,7 +23,7 @@ import 'p07_worker_list_page.dart';
 import 'p09_open_shift_post_page.dart';
 
 /// P08 매장 설정 (점주 하단 탭 '매장'). 근무 규칙은 매장 등록 화면(O02~O06)을 수정 모드로 다시 쓰고,
-/// 사람 · 계정(매장 코드 재발급 · 로그아웃)을 모은다. 구독·요금제와 기록·명세서·서류는 서버에 없어 뺐다
+/// 사람 · 계정(매장 코드 재발급 · 비밀번호 · 로그아웃)을 모은다. 구독·요금제와 기록·명세서·서류는 서버에 없어 뺐다
 class StoreSettingsPage extends StatefulWidget {
   const StoreSettingsPage({super.key});
 
@@ -191,6 +192,7 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
                         ]),
                         _group("계정", [
                           _row("매장 코드 다시 만들기", onTap: _reissue),
+                          _row("비밀번호 바꾸기", onTap: () => showPasswordChangeSheet(context)),
                           _row("로그아웃", danger: true, onTap: _logout),
                         ]),
                       ]),

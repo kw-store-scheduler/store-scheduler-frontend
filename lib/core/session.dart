@@ -4,13 +4,17 @@ import 'api_service.dart';
 
 /// 로그인한 사용자와 지금 보고 있는 매장. 화면들은 storeId를 여기서 꺼내 API를 부른다.
 ///
-/// 토큰과 현재 매장은 shared_preferences(웹은 브라우저 저장소)에 저장해서, 새로고침하거나 앱을 다시 켜도
-/// 스플래시(A01)에서 [restore]로 로그인 상태를 되살린다. 로그아웃하거나 토큰이 만료되면(401) 지운다.
+/// 토큰(액세스·리프레시)과 현재 매장은 shared_preferences(웹은 브라우저 저장소)에 저장해서, 새로고침하거나 앱을 다시 켜도
+/// 스플래시(A01)에서 [restore]로 로그인 상태를 되살린다. 액세스 토큰이 만료되면 ApiService가 리프레시 토큰으로
+/// 다시 받아 오고([_save]로 저장), 그것도 안 되거나(14일 지남) 로그아웃하면 지운다.
 class Session {
-  Session._();
+  Session._() {
+    _api.onTokensRefreshed = _save;
+  }
   static final Session instance = Session._();
 
   static const _tokenKey = 'thyme.token';
+  static const _refreshKey = 'thyme.refreshToken';
   static const _storeKey = 'thyme.storeId';
 
   final ApiService _api = ApiService();
@@ -37,6 +41,7 @@ class Session {
   Future<Me> login(String username, String password) async {
     final res = await _api.post('/api/auth/login', data: {'username': username, 'password': password});
     _api.token = res['token'] as String;
+    _api.refreshToken = res['refreshToken'] as String?;
     await _save();
     return refreshMe();
   }
@@ -44,13 +49,20 @@ class Session {
   Future<void> signup(String username, String password, Role role) =>
       _api.post('/api/auth/signup', data: {'username': username, 'password': password, 'role': role.name.toUpperCase()});
 
-  /// A06 역할 선택. 역할이 토큰에 들어 있어서 서버가 새 토큰을 준다.
+  /// A06 역할 선택. 역할이 토큰에 들어 있어서 서버가 새 액세스 토큰을 준다 (리프레시 토큰은 그대로 쓴다).
   /// 매장을 등록했거나 합류 신청한 계정은 서버가 막는다 (ApiException)
   Future<Me> changeRole(Role role) async {
     final res = await _api.patch('/api/users/me/role', data: {'role': role.name.toUpperCase()});
     _api.token = res['token'] as String;
     await _save();
     return refreshMe();
+  }
+
+  /// 비밀번호 변경. 서버가 모든 기기의 리프레시 토큰을 지우므로(다른 기기 로그아웃) 이 기기는 새 비밀번호로 다시 로그인해 둔다
+  Future<void> changePassword(String current, String next) async {
+    await _api.patch('/api/users/me/password', data: {'currentPassword': current, 'newPassword': next});
+    final username = me?.username;
+    if (username != null) await login(username, next);
   }
 
   Future<Me> refreshMe() async {
@@ -76,6 +88,7 @@ class Session {
     final token = prefs.getString(_tokenKey);
     if (token == null) return null;
     _api.token = token;
+    _api.refreshToken = prefs.getString(_refreshKey);
     _storeId = prefs.getInt(_storeKey);
     try {
       return await refreshMe();
@@ -90,10 +103,12 @@ class Session {
 
   Future<void> logout() async {
     _api.token = null;
+    _api.refreshToken = null;
     me = null;
     _storeId = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.remove(_refreshKey);
     await prefs.remove(_storeKey);
   }
 
@@ -104,6 +119,12 @@ class Session {
       await prefs.remove(_tokenKey);
     } else {
       await prefs.setString(_tokenKey, token);
+    }
+    final refresh = _api.refreshToken;
+    if (refresh == null) {
+      await prefs.remove(_refreshKey);
+    } else {
+      await prefs.setString(_refreshKey, refresh);
     }
     if (_storeId == null) {
       await prefs.remove(_storeKey);

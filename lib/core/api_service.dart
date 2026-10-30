@@ -22,11 +22,20 @@ class ApiService {
 
   late final Dio dio;
 
-  /// 로그인하면 채워지는 JWT. 모든 요청에 `Authorization: Bearer` 로 붙는다.
+  /// 로그인하면 채워지는 JWT. 모든 요청에 `Authorization: Bearer` 로 붙는다. 1시간이면 만료된다
   String? token;
 
-  /// 로그인한 상태에서 401(토큰 만료)이 오면 부른다. main.dart가 세션을 지우고 로그인 화면으로 보낸다
+  /// 액세스 토큰이 만료(401)되면 POST /api/auth/refresh 로 새 쌍을 받는 데 쓴다. 14일, 한 번 쓰면 새 것으로 바뀐다
+  String? refreshToken;
+
+  /// 재발급으로 토큰이 바뀌면 부른다. Session이 저장소에 다시 쓴다
+  Future<void> Function()? onTokensRefreshed;
+
+  /// 로그인한 상태에서 401이 오고 재발급도 안 되면 부른다. main.dart가 세션을 지우고 로그인 화면으로 보낸다
   void Function()? onUnauthorized;
+
+  /// 진행 중인 재발급. 여러 요청이 한꺼번에 401을 받아도 리프레시 토큰은 한 번만 쓴다 (두 번째는 이미 쓴 토큰이라 실패)
+  Future<bool>? _refreshing;
 
   /// 서버 주소. 빌드할 때 바꾼다: `flutter run --dart-define=API_BASE_URL=https://...`
   /// 지정하지 않으면 로컬 서버 (안드로이드 에뮬레이터는 PC의 localhost가 10.0.2.2)
@@ -50,7 +59,7 @@ class ApiService {
 
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
-        if (token != null) options.headers['Authorization'] = 'Bearer $token';
+        if (token != null && options.extra['noAuth'] != true) options.headers['Authorization'] = 'Bearer $token';
         handler.next(options);
       },
     ));
@@ -76,16 +85,49 @@ class ApiService {
   Future<dynamic> delete(String path, {Map<String, dynamic>? query}) =>
       _send(() => dio.delete(path, queryParameters: query));
 
-  /// 응답 본문(JSON)만 돌려주고, 실패는 ApiException 하나로 바꾼다
+  /// 응답 본문(JSON)만 돌려주고, 실패는 ApiException 하나로 바꾼다.
+  /// 로그인한 상태에서 401이 오면 토큰을 재발급받아 한 번 더 보낸다 (요청 함수가 보낼 때마다 헤더를 새 토큰으로 붙인다)
   Future<dynamic> _send(Future<Response> Function() request) async {
     try {
       return (await request()).data;
     } on DioException catch (e) {
       final status = e.response?.statusCode;
       // 로그인 중이 아닐 때의 401(잘못된 비밀번호 등)은 화면이 처리한다
-      if (status == 401 && token != null) onUnauthorized?.call();
+      if (status == 401 && token != null) {
+        final sentWith = e.requestOptions.headers['Authorization'];
+        // 기다리는 사이 다른 요청이 이미 재발급했으면 그 토큰으로 다시 보낸다
+        final renewed = sentWith != 'Bearer $token' || await _refresh();
+        if (renewed) {
+          try {
+            return (await request()).data;
+          } on DioException catch (e2) {
+            if (e2.response?.statusCode == 401) onUnauthorized?.call();
+            throw ApiException(_messageOf(e2), statusCode: e2.response?.statusCode);
+          }
+        }
+        onUnauthorized?.call();
+      }
       throw ApiException(_messageOf(e), statusCode: status);
     }
+  }
+
+  /// 리프레시 토큰으로 새 토큰 쌍을 받는다. 동시에 불려도 서버에는 한 번만 보낸다. 성공하면 true
+  Future<bool> _refresh() {
+    final rt = refreshToken;
+    if (rt == null) return Future.value(false);
+    return _refreshing ??= () async {
+      try {
+        final res = await dio.post('/api/auth/refresh', data: {'refreshToken': rt}, options: Options(extra: {'noAuth': true}));
+        token = res.data['token'] as String;
+        refreshToken = res.data['refreshToken'] as String;
+        await onTokensRefreshed?.call();
+        return true;
+      } on DioException {
+        return false;
+      } finally {
+        _refreshing = null;
+      }
+    }();
   }
 
   static String _messageOf(DioException e) {
