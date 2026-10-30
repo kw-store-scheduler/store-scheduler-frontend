@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../widgets/thyme_back_button.dart';
 import '../../core/theme.dart';
+import '../../widgets/thyme_worker_tab_bar.dart';
 import 'h12_absence_report_page.dart';
+import 'w09_shift_swap_page.dart';
 
 class VacantShiftBoardPage extends StatefulWidget {
   const VacantShiftBoardPage({super.key});
@@ -47,28 +49,20 @@ class _VacantShiftBoardPageState extends State<VacantShiftBoardPage> {
       appBar: AppBar(
         backgroundColor: ThymeColor.bg,
         elevation: 0,
-        leading: ThymeBackButton(size: 20),
+        // 탭 첫 화면이면 뒤로가기 자리를 비우지 않는다
+        automaticallyImplyLeading: false,
+        leading: Navigator.canPop(context) ? const ThymeBackButton(size: 20) : null,
         title: const Text(
           "빈 근무",
           style: TextStyle(color: ThymeColor.text, fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        centerTitle: true,
+        centerTitle: false,
         actions: [
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                  side: BorderSide(color: ThymeColor.border),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                // 내 근무 내놓기 = H12 오늘 못 나가요
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AbsenceReportPage())),
-                child: const Text("내 근무 내놓기", style: TextStyle(color: ThymeColor.text, fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ),
+          _headerButton("근무 바꾸기", () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShiftSwapPage()))),
+          const SizedBox(width: 8),
+          // 내 근무 내놓기 = H12 오늘 못 나가요
+          _headerButton("내 근무 내놓기", () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AbsenceReportPage()))),
+          const SizedBox(width: 16),
         ],
       ),
       body: SingleChildScrollView(
@@ -150,8 +144,22 @@ class _VacantShiftBoardPageState extends State<VacantShiftBoardPage> {
           ],
         ),
       ),
+      bottomNavigationBar: const ThymeWorkerTabBar(current: WorkerTab.swap),
     );
   }
+
+  Widget _headerButton(String label, VoidCallback onPressed) => Center(
+        child: OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+            side: BorderSide(color: ThymeColor.border),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          onPressed: onPressed,
+          child: Text(label, style: const TextStyle(color: ThymeColor.text, fontSize: 12, fontWeight: FontWeight.bold)),
+        ),
+      );
 
   // 빈 근무 카드 컴포넌트
   Widget _buildVacantCard({

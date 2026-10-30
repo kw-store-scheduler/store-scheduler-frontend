@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../widgets/thyme_back_button.dart';
 import '../../core/theme.dart';
+import '../../widgets/thyme_worker_tab_bar.dart';
 import 'w10_preference_report_page.dart';
 
 class MySchedulePage extends StatelessWidget {
@@ -13,7 +14,9 @@ class MySchedulePage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: ThymeColor.bg,
         elevation: 0,
-        leading: ThymeBackButton(size: 20),
+        // 탭 첫 화면이면 뒤로가기 자리를 비우지 않는다
+        automaticallyImplyLeading: false,
+        leading: Navigator.canPop(context) ? const ThymeBackButton(size: 20) : null,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -179,6 +182,7 @@ class MySchedulePage extends StatelessWidget {
           ],
         ),
       ),
+      bottomNavigationBar: const ThymeWorkerTabBar(current: WorkerTab.schedule),
     );
   }
 }

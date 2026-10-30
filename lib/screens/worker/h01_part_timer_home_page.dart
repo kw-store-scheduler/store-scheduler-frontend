@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
+import '../../widgets/thyme_worker_tab_bar.dart';
 import 'h04_notification_page.dart';
-import 'h06_my_info_page.dart';
 import 'h12_absence_report_page.dart';
 import 'w00_load_last_month_page.dart';
-import 'w07_my_schedule_page.dart';
 import 'w08_cover_accept_page.dart';
-import 'w09_shift_swap_page.dart';
 
 class PartTimerHomePage extends StatelessWidget {
   const PartTimerHomePage({super.key});
@@ -94,9 +92,8 @@ class PartTimerHomePage extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        onPressed: () {
-                          // 출근 체크 로직
-                        },
+                        // H05 출근 체크는 부수 서비스(X) 범위 밖
+                        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("출근 체크는 준비 중이에요"))),
                         child: const Text("출근하기", style: TextStyle(color: ThymeColor.onPrimary, fontWeight: FontWeight.bold)),
                       ),
                     ],
@@ -128,6 +125,7 @@ class PartTimerHomePage extends StatelessWidget {
               title: "새 공지 · 겨울 신메뉴 레시피",
               subtitle: "08:12",
               isUrgent: false,
+              onTap: () => ThymeWorkerTabBar.go(context, WorkerTab.notice),
             ),
             
             const SizedBox(height: 32),
@@ -137,7 +135,10 @@ class PartTimerHomePage extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text("이번 주", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
-                Text("전체 근무표 〉", style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
+                GestureDetector(
+                  onTap: () => ThymeWorkerTabBar.go(context, WorkerTab.schedule),
+                  child: Text("전체 근무표 〉", style: TextStyle(fontSize: 12, color: ThymeColor.textSub)),
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -189,31 +190,7 @@ class PartTimerHomePage extends StatelessWidget {
         ),
       ),
       
-      // 하단 네비게이션 바 (공통 뼈대)
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: ThymeColor.text,
-        unselectedItemColor: ThymeColor.disabled,
-        showUnselectedLabels: true,
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
-        onTap: (i) {
-          final page = switch (i) {
-            1 => const MySchedulePage(),
-            2 => const ShiftSwapPage(),
-            4 => const MyInfoPage(),
-            _ => null, // 공지·업무(H03)는 부수 서비스(X) 범위 밖
-          };
-          if (page != null) Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: "홈"),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: "근무표"),
-          BottomNavigationBarItem(icon: Icon(Icons.sync_alt), label: "대타·교대"),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: "공지·업무"),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "내 정보"),
-        ],
-      ),
+      bottomNavigationBar: const ThymeWorkerTabBar(current: WorkerTab.home),
     );
   }
 

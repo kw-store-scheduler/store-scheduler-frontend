@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../theme/thyme_theme.dart';
-import '../owner/p06_substitute_manage_page.dart';
+import '../../widgets/thyme_worker_tab_bar.dart';
 import 'h04_notification_page.dart';
-import 'h06_my_info_page.dart';
 import 'h12_absence_report_page.dart';
-import 'w07_my_schedule_page.dart';
 
 /// H02 직원 홈. 이번 주 근무시간, 남은 연차, 오늘 결원, 오픈·마감 업무 체크리스트 (가이드 4-0 직원 vs 알바)
 class EmployeeHomePage extends StatefulWidget {
@@ -79,7 +77,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                     ),
                     FilledButton(
                       style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 18)),
-                      onPressed: () {}, // H05 출근 체크는 부수 서비스(X) 범위 밖
+                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("출근 체크는 준비 중이에요"))), // H05 출근 체크는 부수 서비스(X) 범위 밖
                       child: const Text("출근하기"),
                     ),
                   ],
@@ -118,10 +116,10 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
                         ],
                       ),
                     ),
-                    // 매니저 직원은 대타 현황을 보고 승인한다 (P06)
+                    // 대타 현황은 대타·교대 탭(H07 빈 근무 게시판). P06 대타 관리는 점주 전용 API라 직원은 못 연다
                     FilledButton(
                       style: FilledButton.styleFrom(minimumSize: const Size(0, 44), padding: const EdgeInsets.symmetric(horizontal: 14)),
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubstituteManagePage())),
+                      onPressed: () => ThymeWorkerTabBar.go(context, WorkerTab.swap),
                       child: const Text("대타 보기", style: TextStyle(fontSize: 14)),
                     ),
                   ],
@@ -153,30 +151,7 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
         ),
       ),
 
-      // 직원 하단 탭 (가이드 4-0: 홈 · 근무표 · 연차·교대 · 공지·업무 · 내 정보)
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: ThymeColor.text,
-        unselectedItemColor: ThymeColor.disabled,
-        showUnselectedLabels: true,
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
-        onTap: (i) {
-          final page = switch (i) {
-            1 => const MySchedulePage(),
-            4 => const MyInfoPage(),
-            _ => null, // 연차·교대, 공지·업무 탭 화면은 아직 없음
-          };
-          if (page != null) Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: "홈"),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: "근무표"),
-          BottomNavigationBarItem(icon: Icon(Icons.add), label: "연차·교대"),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: "공지·업무"),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "내 정보"),
-        ],
-      ),
+      bottomNavigationBar: const ThymeWorkerTabBar(current: WorkerTab.home),
     );
   }
 

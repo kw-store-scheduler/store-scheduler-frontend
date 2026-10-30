@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../widgets/thyme_back_button.dart';
-import '../../core/home_router.dart';
 import '../../core/theme.dart';
-import 'h01_part_timer_home_page.dart'; // 처리 후 얄짤없이 홈으로!
+import '../../widgets/thyme_worker_tab_bar.dart';
 
 class ShiftSwapPage extends StatefulWidget {
   const ShiftSwapPage({super.key});
@@ -129,7 +128,7 @@ class _ShiftSwapPageState extends State<ShiftSwapPage> {
                   ),
                   onPressed: () {
                     // 요청 완료 후 홈 화면으로 이동
-                    resetTo(context, const PartTimerHomePage());
+                    ThymeWorkerTabBar.go(context, WorkerTab.home);
                   },
                   child: Text(
                     _selectedCoworker != null ? "$_selectedCoworker님에게 맞교환 요청" : "대상을 선택해주세요",

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../core/home_router.dart';
 import '../../core/theme.dart';
+import '../../widgets/thyme_worker_tab_bar.dart';
+import 'j01_store_code_page.dart';             // 다른 매장 추가
 // 행님이 이미 깎아두신 화면들 실전 임포트!
-import 'h01_part_timer_home_page.dart';            // 홈으로 이동
 import 'w10_preference_report_page.dart';      // 희망 반영 리포트
 import 'w11_fixed_schedule_page.dart';         // 고정 일정/역량
-import '../common/a06_role_selection_page.dart';// 점주 역할 추가
 import '../../core/session.dart';
 import '../common/a03_login_page.dart';        // 로그아웃
 
@@ -51,7 +51,7 @@ class MyInfoPage extends StatelessWidget {
                           ),
                         ),
                         TextButton(
-                          onPressed: () {}, 
+                          onPressed: () => _soon(context, "프로필 수정"),
                           child: const Text("수정", style: TextStyle(color: ThymeColor.textSub, fontWeight: FontWeight.bold)),
                         ),
                       ],
@@ -106,13 +106,12 @@ class MyInfoPage extends StatelessWidget {
                       leading: const Icon(Icons.storefront_outlined, color: ThymeColor.text),
                       title: const Text("구시대 커피 광운대점", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text)),
                       trailing: const Text("직원 보는 중", style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
-                      onTap: () {},
                     ),
                     ListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 24),
                       leading: const Icon(Icons.add, color: ThymeColor.textSub),
                       title: const Text("다른 매장 추가", style: TextStyle(fontSize: 15, color: ThymeColor.textSub)),
-                      onTap: () {},
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StoreCodePage())),
                     ),
                   ],
                 ),
@@ -125,13 +124,15 @@ class MyInfoPage extends StatelessWidget {
                 color: ThymeColor.surface,
                 child: Column(
                   children: [
-                    _buildMenuRow(context, "근무 기록 · 정정", "확인 필요 2", const PartTimerHomePage()), // 일단 홈으로
-                    _buildMenuRow(context, "서류함 · 임금명세서", "보건증 D-12", const PartTimerHomePage()),
-                    _buildMenuRow(context, "고정 일정 · 역량", "수정 2건", const FixedSchedulePage()), // 행님 파일로!
-                    _buildMenuRow(context, "희망 반영 리포트", "10/10", const PreferenceReportPage()), // 행님 파일로!
-                    _buildMenuRow(context, "알림 설정", "켜짐", const PartTimerHomePage()),
-                    _buildMenuRow(context, "점주 역할 추가", "", const RoleSelectionPage()), // 행님 파일로!
-                    _buildMenuRow(context, "고객센터 · 약관", "", const PartTimerHomePage()),
+                    // 화면이 없는 메뉴(null)는 홈을 한 장 더 쌓지 않고 '준비 중' 안내만 띄운다
+                    _buildMenuRow(context, "근무 기록 · 정정", "", null),
+                    _buildMenuRow(context, "서류함 · 임금명세서", "", null),
+                    _buildMenuRow(context, "고정 일정 · 역량", "", const FixedSchedulePage()), // 행님 파일로!
+                    _buildMenuRow(context, "희망 반영 리포트", "", const PreferenceReportPage()), // 행님 파일로!
+                    _buildMenuRow(context, "알림 설정", "", null),
+                    // 점주 역할 추가: 매장에 합류한 계정은 서버가 역할 변경을 막는다 (PATCH /users/me/role)
+                    _buildMenuRow(context, "점주 역할 추가", "", null),
+                    _buildMenuRow(context, "고객센터 · 약관", "", null),
                   ],
                 ),
               ),
@@ -155,24 +156,8 @@ class MyInfoPage extends StatelessWidget {
         ),
       ),
       
-      // 기획서 시안 그대로 하단 네비게이션 바 적용[cite: 5]
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: ThymeColor.text,
-        unselectedItemColor: ThymeColor.disabled,
-        currentIndex: 3, // 내 정보 탭 활성화
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
-        onTap: (index) {
-          if (index == 0) resetTo(context, const PartTimerHomePage());
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: "근무표"),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), label: "대타·교대"),
-          BottomNavigationBarItem(icon: Icon(Icons.edit_document), label: "희망 제출"),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "내 정보"),
-        ],
-      ),
+      // 근로자 공통 하단 탭 (가이드 4-0)
+      bottomNavigationBar: const ThymeWorkerTabBar(current: WorkerTab.me),
     );
   }
 
@@ -187,7 +172,7 @@ class MyInfoPage extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuRow(BuildContext context, String title, String trailingText, Widget targetPage) {
+  Widget _buildMenuRow(BuildContext context, String title, String trailingText, Widget? targetPage) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
       title: Text(title, style: const TextStyle(fontSize: 15, color: ThymeColor.text)),
@@ -201,9 +186,12 @@ class MyInfoPage extends StatelessWidget {
         ],
       ),
       onTap: () {
-        // 주석 따위 없음! 네비게이션 직행!
+        if (targetPage == null) return _soon(context, title);
         Navigator.push(context, MaterialPageRoute(builder: (context) => targetPage));
       },
     );
   }
+
+  void _soon(BuildContext context, String what) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$what은(는) 준비 중이에요")));
 }
