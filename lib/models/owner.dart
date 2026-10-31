@@ -144,6 +144,50 @@ class AttendanceRecord {
       );
 }
 
+/// 마감 보고로 본 요일·교대별 필요 인원 제안 (GET /staffing-suggestions?month=)
+/// suggestedStaff 가 null 이면 보고가 모자라 제안 못 함 (reason 에 이유)
+class StaffingSuggestion {
+  const StaffingSuggestion({required this.shiftName, required this.weekday, required this.sampleDays, this.averageCustomers, required this.currentRequiredStaff, this.suggestedStaff, this.reason});
+
+  final String shiftName;
+
+  /// 0 = 월 … 6 = 일
+  final int weekday;
+  final int sampleDays;
+  final double? averageCustomers;
+  final int currentRequiredStaff;
+  final int? suggestedStaff;
+  final String? reason;
+
+  bool get changes => suggestedStaff != null && suggestedStaff != currentRequiredStaff;
+
+  factory StaffingSuggestion.fromJson(Map<String, dynamic> j) => StaffingSuggestion(
+        shiftName: j['shiftName'] as String? ?? '',
+        weekday: weekdayNames.indexOf(j['dayOfWeek'] as String),
+        sampleDays: (j['sampleDays'] as num?)?.toInt() ?? 0,
+        averageCustomers: (j['averageCustomers'] as num?)?.toDouble(),
+        currentRequiredStaff: (j['currentRequiredStaff'] as num?)?.toInt() ?? 0,
+        suggestedStaff: (j['suggestedStaff'] as num?)?.toInt(),
+        reason: j['reason'] as String?,
+      );
+}
+
+class StaffingSuggestions {
+  const StaffingSuggestions({required this.from, required this.to, required this.customersPerStaff, required this.items});
+
+  final DateTime from;
+  final DateTime to;
+  final int customersPerStaff;
+  final List<StaffingSuggestion> items;
+
+  factory StaffingSuggestions.fromJson(Map<String, dynamic> j) => StaffingSuggestions(
+        from: DateTime.parse(j['basedOnFrom'] as String),
+        to: DateTime.parse(j['basedOnTo'] as String),
+        customersPerStaff: (j['customersPerStaff'] as num?)?.toInt() ?? 0,
+        items: [for (final s in j['suggestions'] as List? ?? const []) StaffingSuggestion.fromJson(s as Map<String, dynamic>)],
+      );
+}
+
 /// 직원별 희망 제출 현황 한 줄 (GET /preferences?month=, M01)
 /// needsContractApproval = 계약 상한을 넘겨 신청했고 아직 승인되지 않음 (서버는 거절도 같은 값으로 준다)
 class PreferenceSubmissionRow {

@@ -55,6 +55,13 @@ class OwnerApi {
   /// 승인된 직원 한 명 (수습 시급·공제·퇴사 예정일은 프로필 응답에 없어서 목록에서 찾는다)
   Future<EmployeeInfo?> employee(int employeeId) async => (await employees()).where((e) => e.id == employeeId).firstOrNull;
 
+  /// 퇴사한 사람 (지난 근무·급여 기록은 남아 있다)
+  Future<List<EmployeeInfo>> resignedEmployees() async => _list(await _api.get('$_store/employees/resigned'), EmployeeInfo.fromJson);
+
+  /// 그달 직전 4주 마감 보고로 본 요일·교대별 필요 인원 제안 (month = "2026-11")
+  Future<StaffingSuggestions> staffingSuggestions(String month) async =>
+      StaffingSuggestions.fromJson(await _api.get('$_store/staffing-suggestions', query: {'month': month}) as Map<String, dynamic>);
+
   /// 수습 시급·공제 설정. 보낸 값으로 통째로 바뀐다 (probationWage 가 null 이면 수습 감액 해제).
   /// 수습 시급은 1년 이상 계약 · 단순노무 아님일 때만 받는다. 이 두 값은 서버에 저장되지 않아 매번 보낸다
   Future<EmployeeInfo> updatePaySettings(int employeeId,

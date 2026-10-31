@@ -16,6 +16,7 @@ import 'package:thyme_frontend/screens/owner/m05_proposal_compare_page.dart';
 import 'package:thyme_frontend/screens/owner/m02_labor_cost_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_notice_task_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_attendance_page.dart';
+import 'package:thyme_frontend/screens/owner/owner_staffing_suggestion_page.dart';
 import 'package:thyme_frontend/screens/worker/worker_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_schedule_page.dart';
 import 'package:thyme_frontend/models/owner.dart';
@@ -114,6 +115,7 @@ void main() {
     'LaborCostPage': () => const LaborCostPage(),
     'NoticeTaskManagePage': () => const NoticeTaskManagePage(),
     'OwnerAttendancePage': () => const OwnerAttendancePage(),
+    'StaffingSuggestionPage': () => const StaffingSuggestionPage(),
     'WorkerAttendancePage': () => const WorkerAttendancePage(),
     'OwnerSchedulePage': () => const OwnerSchedulePage(),
     'AbsenceReportPage': () => const AbsenceReportPage(),

@@ -21,6 +21,7 @@ import 'o05_labor_law_page.dart';
 import 'o06_exception_days_page.dart';
 import 'owner_attendance_page.dart';
 import 'owner_notice_task_page.dart';
+import 'owner_staffing_suggestion_page.dart';
 import 'p07_worker_list_page.dart';
 import 'p09_open_shift_post_page.dart';
 
@@ -214,6 +215,7 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
                         _group("근무 규칙", [
                           _row("매장 정보 · 업종 · 주기", trailing: _cycleLabel, onTap: _storeInfo),
                           _row("교대 시간대 · 인원", trailing: "$_shifts개", onTap: () => _open(const StoreShiftSetupPage(editing: true))),
+                          _row("필요 인원 제안 · 마감 보고 기반", onTap: () => _open(const StaffingSuggestionPage())),
                           _row("평소와 다른 날", trailing: _exceptions == 0 ? null : "$_exceptions개", onTap: () => _open(const ExceptionDaysPage(editing: true))),
                           _row("리테일 큐레이션", badge: _windows, onTap: () => _open(const CurationPage(editing: true))),
                           _row("노동법 한도 · 수당",

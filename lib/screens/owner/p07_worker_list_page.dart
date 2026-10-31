@@ -10,6 +10,7 @@ import 'm01_worker_approval_page.dart';
 import 'p11_worker_profile_confirm_page.dart';
 
 /// P07 근무자 목록. GET /roster: 직원/알바, 오늘 상태(근무 중·결원·휴무), 이번 달 시간, 다음 달 희망 제출 여부
+/// 퇴사 예정(GET /employees 의 resignedOn)은 이름 옆에, 퇴사한 사람(GET /employees/resigned)은 맨 아래에 접어 둔다
 class WorkerListPage extends StatefulWidget {
   const WorkerListPage({super.key});
 
@@ -19,6 +20,10 @@ class WorkerListPage extends StatefulWidget {
 
 class _WorkerListPageState extends State<WorkerListPage> {
   Roster? _roster;
+
+  /// 퇴사 예정일 (직원 id → 마지막 근무일)
+  Map<int, DateTime> _leaving = {};
+  List<EmployeeInfo> _resigned = const [];
   EmploymentType? _filter; // null = 전체
   String? _error;
 
@@ -31,8 +36,18 @@ class _WorkerListPageState extends State<WorkerListPage> {
   Future<void> _load() async {
     setState(() => _error = null);
     try {
-      final r = await OwnerApi().roster();
-      if (mounted) setState(() => _roster = r);
+      final api = OwnerApi();
+      final r = await api.roster();
+      // 퇴사 정보는 덤이라 못 받아도 목록은 보여 준다
+      final employees = await api.employees().catchError((_) => <EmployeeInfo>[]);
+      final resigned = await api.resignedEmployees().catchError((_) => <EmployeeInfo>[]);
+      if (mounted) {
+        setState(() {
+          _roster = r;
+          _leaving = {for (final e in employees) if (e.resignedOn != null) e.id: e.resignedOn!};
+          _resigned = resigned..sort((a, b) => (b.resignedOn ?? DateTime(0)).compareTo(a.resignedOn ?? DateTime(0)));
+        });
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
@@ -95,6 +110,29 @@ class _WorkerListPageState extends State<WorkerListPage> {
                             child: Text("● 민트 근무 중 · 회색 휴무 · 로즈 결원 · 오른쪽은 다음 달 희망 제출 상태",
                                 style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
                           ),
+                        if (_resigned.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Material(
+                            color: ThymeColor.surface,
+                            borderRadius: BorderRadius.circular(20),
+                            clipBehavior: Clip.antiAlias,
+                            child: ExpansionTile(
+                              shape: const Border(),
+                              title: Text("퇴사한 사람 ${_resigned.length}",
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.textSub)),
+                              subtitle: const Text("지난 근무와 급여 기록은 남아 있어요", style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+                              children: [
+                                for (final e in _resigned)
+                                  ListTile(
+                                    title: Text(e.displayName, style: const TextStyle(fontWeight: FontWeight.bold, color: ThymeColor.text)),
+                                    subtitle: Text(employmentLabel(e.employmentType)),
+                                    trailing: Text(e.resignedOn == null ? "퇴사" : "${e.resignedOn!.year}. ${e.resignedOn!.month}. ${e.resignedOn!.day} 퇴사",
+                                        style: const TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ]),
           ),
         ]),
@@ -169,6 +207,9 @@ class _WorkerListPageState extends State<WorkerListPage> {
                       child: Text(e.badge,
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: full ? ThymeColor.onPrimary : ThymeColor.text)),
                     ),
+                    if (_leaving[e.employeeId] case final last?)
+                      Text("${last.month}/${last.day} 퇴사 예정",
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ThymeColor.dangerText)),
                   ]),
                   const SizedBox(height: 4),
                   Text(status, style: const TextStyle(fontSize: 14, color: ThymeColor.textSub)),

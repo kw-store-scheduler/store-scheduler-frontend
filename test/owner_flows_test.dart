@@ -11,7 +11,9 @@ import 'package:thyme_frontend/screens/owner/owner_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_notice_task_page.dart';
 import 'package:thyme_frontend/screens/worker/worker_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_schedule_page.dart';
+import 'package:thyme_frontend/screens/owner/owner_staffing_suggestion_page.dart';
 import 'package:thyme_frontend/screens/owner/p06_substitute_manage_page.dart';
+import 'package:thyme_frontend/screens/owner/p07_worker_list_page.dart';
 import 'package:thyme_frontend/screens/owner/p08_store_settings_page.dart';
 
 import 'test_helpers.dart';
@@ -354,6 +356,48 @@ void main() {
     await tapText(tester, '저장');
     expect(server.sent('PATCH', _store).single.$3, {'name': '구시대 커피 광운대점', 'address': '서울 노원구'});
     expect(server.sent('GET', '/api/users/me'), isNotEmpty); // 매장 이름을 쓰는 곳도 새로
+  });
+
+  testWidgets('3순위: P07 에 퇴사 예정 표시와 퇴사한 사람 목록', (tester) async {
+    server.routes['GET $_store/roster'] = (_) => {
+          'pendingApprovals': 0,
+          'employees': [
+            {'employeeId': 3, 'name': '유나', 'employmentType': 'PART_TIME', 'todayStatus': 'OFF', 'monthHours': 20},
+          ],
+        };
+    server.routes['GET $_store/employees'] = (_) => [
+          {'id': 3, 'name': '유나', 'status': 'APPROVED', 'resignedOn': '2026-11-20'},
+        ];
+    server.routes['GET $_store/employees/resigned'] = (_) => [
+          {'id': 8, 'name': '민지', 'status': 'RESIGNED', 'employmentType': 'PART_TIME', 'resignedOn': '2026-09-30'},
+        ];
+    await pumpScreen(tester, const WorkerListPage());
+    await settle(tester);
+    expect(find.text('11/20 퇴사 예정'), findsOneWidget);
+    await tapText(tester, '퇴사한 사람 1');
+    expect(find.text('민지'), findsOneWidget);
+    expect(find.text('2026. 9. 30 퇴사'), findsOneWidget);
+  });
+
+  testWidgets('3순위: 필요 인원 제안은 다음 달로 묻고, 바꿀 곳을 보여 준다', (tester) async {
+    final now = DateTime.now();
+    final next = DateTime(now.year, now.month + 1);
+    final month = '${next.year}-${next.month.toString().padLeft(2, '0')}';
+    server.routes['GET $_store/staffing-suggestions'] = (_) => {
+          'month': month, 'basedOnFrom': '2026-10-04', 'basedOnTo': '2026-10-31', 'customersPerStaff': 20,
+          'suggestions': [
+            {'shiftId': 11, 'shiftName': '오픈', 'dayOfWeek': 'MONDAY', 'sampleDays': 4, 'averageCustomers': 58.5, 'currentRequiredStaff': 2, 'suggestedStaff': 3},
+            {'shiftId': 12, 'shiftName': '마감', 'dayOfWeek': 'MONDAY', 'sampleDays': 4, 'averageCustomers': 30.0, 'currentRequiredStaff': 2, 'suggestedStaff': 2},
+            {'shiftId': 11, 'shiftName': '오픈', 'dayOfWeek': 'TUESDAY', 'sampleDays': 1, 'currentRequiredStaff': 1, 'reason': '보고가 2일 미만이에요'},
+          ],
+        };
+    await pumpScreen(tester, const StaffingSuggestionPage());
+    await settle(tester);
+    expect(server.sent('GET', '$_store/staffing-suggestions?month=$month'), hasLength(1));
+    expect(find.text('1곳은 인원을 바꿔 보길 권해요.'), findsOneWidget);
+    expect(find.text('2명 → 3명'), findsOneWidget);
+    expect(find.text('2명 그대로'), findsOneWidget);
+    expect(find.text('보고가 2일 미만이에요'), findsOneWidget);
   });
 
   group('4. 계약 초과 근무량 승인 (M01)', () {
