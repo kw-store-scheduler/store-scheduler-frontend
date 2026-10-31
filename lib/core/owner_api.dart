@@ -82,6 +82,16 @@ class OwnerApi {
   Future<LeaveRequestInfo> approveLeave(int id) async =>
       LeaveRequestInfo.fromJson(await _api.post('$_store/leaves/$id/approve') as Map<String, dynamic>);
 
+  /// 그달 직원별 희망 제출 현황 (month = "2026-11")
+  Future<List<PreferenceSubmissionRow>> preferenceSubmissions(String month) async {
+    final j = await _api.get('$_store/preferences', query: {'month': month}) as Map<String, dynamic>;
+    return [for (final e in j['employees'] as List? ?? const []) PreferenceSubmissionRow.fromJson(e as Map<String, dynamic>)];
+  }
+
+  /// 계약 상한을 넘긴 근무량 신청 승인·거절. 승인하지 않으면 근무표를 만들 때 계약 상한으로 잘린다
+  Future<void> decideContractExceed(int employeeId, String month, {required bool approved}) =>
+      _api.post('$_store/preferences/$employeeId/contract-exceed', query: {'month': month, 'approved': approved});
+
   Future<void> rejectLeave(int id) => _api.post('$_store/leaves/$id/reject');
 
   Future<List<SkillRequest>> skillRequests() async => _list(await _api.get('$_store/skill-requests'), SkillRequest.fromJson);

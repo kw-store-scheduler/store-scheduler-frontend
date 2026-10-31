@@ -14,7 +14,7 @@ import 'p11_worker_profile_confirm_page.dart';
 /// 2026년 최저시급 (승인할 때 시급 기본값)
 const minimumWage2026 = 10320;
 
-/// M01 근무자 승인. 매장 코드 공유 · 다음 달 희망 제출 현황 · 가입 승인(시급) · 연차 승인 · 역량 신청
+/// M01 근무자 승인. 매장 코드 공유 · 다음 달 희망 제출 현황 · 가입 승인(시급) · 연차 승인 · 계약 초과 근무량 · 역량 신청
 class WorkerApprovalPage extends StatefulWidget {
   const WorkerApprovalPage({super.key});
 
@@ -28,6 +28,9 @@ class _WorkerApprovalPageState extends State<WorkerApprovalPage> {
   List<EmployeeInfo>? _pending;
   List<LeaveRequestInfo> _leaves = [];
   List<SkillRequest> _skillRequests = [];
+
+  /// 다음 달 희망에서 계약 상한을 넘겨 신청한 사람 (W06). 못 받아도 나머지는 보여 준다
+  List<PreferenceSubmissionRow> _exceed = [];
   List<RosterRow> _approved = [];
   String? _error;
   bool _busy = false;
@@ -48,6 +51,7 @@ class _WorkerApprovalPageState extends State<WorkerApprovalPage> {
       final leaves = await api.leaves();
       final skillRequests = await api.skillRequests();
       final roster = await api.roster();
+      final submissions = await api.preferenceSubmissions(home.preferences.month).catchError((_) => <PreferenceSubmissionRow>[]);
       if (!mounted) return;
       setState(() {
         _storeCode = store.storeCode;
@@ -55,6 +59,7 @@ class _WorkerApprovalPageState extends State<WorkerApprovalPage> {
         _pending = pending;
         _leaves = [for (final l in leaves) if (l.status == 'PENDING') l];
         _skillRequests = skillRequests;
+        _exceed = [for (final s in submissions) if (s.needsContractApproval) s];
         _approved = roster.employees;
       });
     } on ApiException catch (e) {
@@ -136,6 +141,11 @@ class _WorkerApprovalPageState extends State<WorkerApprovalPage> {
                           const SizedBox(height: 12),
                           _section("연차 신청 ${_leaves.length}", "승인하면 그날은 필수 휴무"),
                           for (final l in _leaves) _leaveCard(l),
+                        ],
+                        if (_exceed.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _section("${_prefs!.monthNumber}월 계약보다 많이 일하기 ${_exceed.length}", "승인 안 하면 계약 시간까지만"),
+                          for (final s in _exceed) _exceedCard(s),
                         ],
                         if (_skillRequests.isNotEmpty) ...[
                           const SizedBox(height: 12),
@@ -289,6 +299,34 @@ class _WorkerApprovalPageState extends State<WorkerApprovalPage> {
           ),
         ]),
       );
+
+  /// 계약 상한을 넘긴 근무량 신청 (W06). 서버가 거절한 것도 '승인 전'으로 주기 때문에 승인 버튼은 남는다
+  Widget _exceedCard(PreferenceSubmissionRow s) {
+    final month = _prefs!.month;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: ThymeColor.surface, borderRadius: BorderRadius.circular(20)),
+      child: Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(s.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+            const SizedBox(height: 4),
+            const Text("계약 상한보다 많이 일하고 싶대요", style: TextStyle(fontSize: 14, color: ThymeColor.textSub)),
+          ]),
+        ),
+        TextButton(
+          onPressed: _busy ? null : () => _run(() => OwnerApi().decideContractExceed(s.employeeId, month, approved: false), "계약 시간까지만 배치해요"),
+          child: const Text("거절"),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 44), padding: const EdgeInsets.symmetric(horizontal: 18)),
+          onPressed: _busy ? null : () => _run(() => OwnerApi().decideContractExceed(s.employeeId, month, approved: true), "${s.name}님 추가 근무를 승인했어요"),
+          child: const Text("승인"),
+        ),
+      ]),
+    );
+  }
 
   Widget _skillRequestRow(SkillRequest r) => Container(
         margin: const EdgeInsets.only(bottom: 8),

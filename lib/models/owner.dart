@@ -106,6 +106,26 @@ class PreferenceStatus {
       );
 }
 
+/// 직원별 희망 제출 현황 한 줄 (GET /preferences?month=, M01)
+/// needsContractApproval = 계약 상한을 넘겨 신청했고 아직 승인되지 않음 (서버는 거절도 같은 값으로 준다)
+class PreferenceSubmissionRow {
+  const PreferenceSubmissionRow({required this.employeeId, required this.name, required this.submitted, required this.late, required this.needsContractApproval});
+
+  final int employeeId;
+  final String name;
+  final bool submitted;
+  final bool late;
+  final bool needsContractApproval;
+
+  factory PreferenceSubmissionRow.fromJson(Map<String, dynamic> j) => PreferenceSubmissionRow(
+        employeeId: j['employeeId'] as int,
+        name: j['name'] as String? ?? '',
+        submitted: j['submitted'] as bool? ?? false,
+        late: j['late'] as bool? ?? false,
+        needsContractApproval: j['needsContractApproval'] as bool? ?? false,
+      );
+}
+
 /// GET /api/stores/{storeId}/home/owner (P01)
 class OwnerHome {
   const OwnerHome({

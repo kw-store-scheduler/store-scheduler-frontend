@@ -157,7 +157,7 @@ class _WorkHoursPageState extends State<WorkHoursPage> {
                 ],
                 if (w.exceedsContract) ...[
                   const SizedBox(height: 12),
-                  _banner(ThymeColor.infoBg, ThymeColor.info, ThymeColor.infoText, "계약 상한보다 많이 일하려면 사장님 승인이 필요해요. 제출하면 사장님께 알려요."),
+                  _banner(ThymeColor.infoBg, ThymeColor.info, ThymeColor.infoText, "계약 상한보다 많이 일하려면 사장님 승인이 필요해요. 제출하면 사장님 승인 목록에 올라가고, 승인 전에는 계약 시간까지만 배치돼요."),
                 ],
                 if (w.expectedPayMin != null || w.expectedPayMax != null) ...[
                   const SizedBox(height: 12),

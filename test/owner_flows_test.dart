@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thyme_frontend/core/api_service.dart';
 import 'package:thyme_frontend/core/session.dart';
+import 'package:thyme_frontend/screens/owner/m01_worker_approval_page.dart';
 import 'package:thyme_frontend/screens/owner/p06_substitute_manage_page.dart';
 
 import 'test_helpers.dart';
@@ -36,6 +37,31 @@ class _Server implements HttpClientAdapter {
 }
 
 const _store = '/api/stores/7';
+
+/// 점주 홈·매장 목록 등 여러 점주 화면이 처음에 부르는 것
+void _ownerBasics(_Server server) {
+  server.routes['GET /api/stores'] = (_) => [
+        {'id': 7, 'name': '구시대 커피', 'storeCode': 'ABCD1234', 'industry': 'CAFE'},
+      ];
+  server.routes['GET $_store/home/owner'] = (_) => {
+        'storeName': '구시대 커피',
+        'date': '2026-10-31',
+        'weeklyLaborCost': 0,
+        'employeeCount': 2,
+        'pendingApprovals': 0,
+        'pendingLeaves': 0,
+        'activeVacancies': [],
+        'todayShifts': [],
+        'nextMonthPreferences': {
+          'month': '2026-11', 'deadline': '2026-10-25', 'daysUntilDeadline': -6,
+          'submittedCount': 2, 'employeeCount': 2, 'submittedByMe': false,
+        },
+      };
+  server.routes['GET $_store/employees/pending'] = (_) => [];
+  server.routes['GET $_store/leaves'] = (_) => [];
+  server.routes['GET $_store/skill-requests'] = (_) => [];
+  server.routes['GET $_store/roster'] = (_) => {'pendingApprovals': 0, 'employees': []};
+}
 
 void main() {
   late _Server server;
@@ -113,6 +139,34 @@ void main() {
       await settle(tester);
       await tapText(tester, '거절');
       expect(server.sent('POST', '$_store/trades/1/reject'), hasLength(1));
+    });
+  });
+
+  group('4. 계약 초과 근무량 승인 (M01)', () {
+    testWidgets('다음 달 희망에서 계약 상한을 넘긴 사람만 보이고, 승인하면 contract-exceed approved=true', (tester) async {
+      _ownerBasics(server);
+      var needs = true;
+      server.routes['GET $_store/preferences'] = (_) => {
+            'month': '2026-11',
+            'employees': [
+              {'employeeId': 3, 'name': '유나', 'submitted': true, 'late': false, 'needsContractApproval': needs},
+              {'employeeId': 4, 'name': '하준', 'submitted': true, 'late': false, 'needsContractApproval': false},
+            ],
+          };
+      server.routes['POST $_store/preferences/3/contract-exceed'] = (_) {
+        needs = false;
+        return {};
+      };
+      await pumpScreen(tester, const WorkerApprovalPage());
+      await settle(tester);
+
+      expect(server.sent('GET', '$_store/preferences?month=2026-11'), hasLength(1));
+      expect(find.text('11월 계약보다 많이 일하기 1'), findsOneWidget);
+      expect(find.text('유나'), findsOneWidget);
+      expect(find.text('하준'), findsNothing);
+      await tapText(tester, '승인');
+      expect(server.sent('POST', '$_store/preferences/3/contract-exceed?month=2026-11&approved=true'), hasLength(1));
+      expect(find.text('11월 계약보다 많이 일하기 1'), findsNothing);
     });
   });
 }
