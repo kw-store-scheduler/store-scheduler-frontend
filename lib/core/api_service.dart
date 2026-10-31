@@ -111,7 +111,9 @@ class ApiService {
     }
   }
 
-  /// 리프레시 토큰으로 새 토큰 쌍을 받는다. 동시에 불려도 서버에는 한 번만 보낸다. 성공하면 true
+  /// 리프레시 토큰으로 새 토큰 쌍을 받는다. 동시에 불려도 서버에는 한 번만 보낸다.
+  /// 성공하면 true, 서버가 리프레시 토큰을 거절하면(401·400) false → 로그아웃.
+  /// 연결 오류·시간 초과·서버 오류(5xx)는 로그인이 끊긴 게 아니므로 ApiException 으로 던진다 (로그인 유지, 오류만 표시)
   Future<bool> _refresh() {
     final rt = refreshToken;
     if (rt == null) return Future.value(false);
@@ -122,8 +124,10 @@ class ApiService {
         refreshToken = res.data['refreshToken'] as String;
         await onTokensRefreshed?.call();
         return true;
-      } on DioException {
-        return false;
+      } on DioException catch (e) {
+        final status = e.response?.statusCode;
+        if (status == 401 || status == 400) return false;
+        throw ApiException(_messageOf(e), statusCode: status);
       } finally {
         _refreshing = null;
       }

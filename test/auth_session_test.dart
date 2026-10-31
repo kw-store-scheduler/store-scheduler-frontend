@@ -27,6 +27,9 @@ class _AuthServer implements HttpClientAdapter {
   final liveRefresh = <String>{'rt-login'};
   var refreshCount = 0;
 
+  /// 재발급 서버 상태: null = 정상, 'down' = 연결 안 됨, 503 등 = 그 상태 코드
+  Object? refreshDown;
+
   /// 지금 비밀번호 (PATCH /me/password 로 바뀐다)
   var password = 'pw123456';
 
@@ -70,6 +73,8 @@ class _AuthServer implements HttpClientAdapter {
       case ('POST', '/api/auth/refresh'):
         // 재발급 요청엔 만료된 토큰을 붙이지 않는다
         expect(o.headers['Authorization'], isNull);
+        if (refreshDown == 'down') throw DioException.connectionError(requestOptions: o, reason: 'connection refused');
+        if (refreshDown is int) return _json({'message': '서버 오류'}, refreshDown as int);
         if (!liveRefresh.remove((o.data as Map)['refreshToken'])) return _json({'message': '로그인이 필요합니다.'}, 401);
         refreshCount++;
         // 동시에 온 요청들이 정말 겹치도록 조금 늦게 답한다
@@ -247,6 +252,42 @@ void main() {
     expect(server.password, 'newpass99');
     expect(ApiService().refreshToken, 'rt-login');
     expect(server.liveRefresh, contains('rt-login'));
+  });
+
+  for (final down in <Object>['down', 503]) {
+    test('재발급이 서버 문제($down)로 실패하면 로그아웃하지 않고 오류만 낸다', () async {
+      SharedPreferences.setMockInitialValues({});
+      server.me = _AuthServer.owner;
+      server.refreshDown = down;
+      var loggedOut = false;
+      final before = ApiService().onUnauthorized;
+      ApiService()
+        ..onUnauthorized = (() => loggedOut = true)
+        ..token = 'expired'
+        ..refreshToken = 'rt-login';
+      addTearDown(() => ApiService().onUnauthorized = before);
+      await expectLater(ApiService().get('/api/users/me'), throwsA(isA<ApiException>().having((e) => e.isUnauthorized, '401', isFalse)));
+      expect(loggedOut, isFalse);
+      expect((ApiService().token, ApiService().refreshToken), ('expired', 'rt-login'));
+
+      // 서버가 돌아오면 같은 리프레시 토큰으로 이어진다
+      server.refreshDown = null;
+      expect((await ApiService().get('/api/users/me'))['username'], 'owner01');
+      expect(loggedOut, isFalse);
+    });
+  }
+
+  test('리프레시 토큰을 서버가 거절(401)하면 로그아웃', () async {
+    SharedPreferences.setMockInitialValues({});
+    var loggedOut = false;
+    final before = ApiService().onUnauthorized;
+    ApiService()
+      ..onUnauthorized = (() => loggedOut = true)
+      ..token = 'expired'
+      ..refreshToken = 'rt-gone';
+    addTearDown(() => ApiService().onUnauthorized = before);
+    await expectLater(ApiService().get('/api/users/me'), throwsA(isA<ApiException>()));
+    expect(loggedOut, isTrue);
   });
 
   test('여러 요청이 한꺼번에 401 을 받아도 재발급은 한 번만 하고 모두 다시 보낸다', () async {
