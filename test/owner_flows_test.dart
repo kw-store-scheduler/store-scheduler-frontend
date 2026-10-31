@@ -7,7 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:thyme_frontend/core/api_service.dart';
 import 'package:thyme_frontend/core/session.dart';
 import 'package:thyme_frontend/screens/owner/m01_worker_approval_page.dart';
+import 'package:thyme_frontend/screens/owner/owner_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_notice_task_page.dart';
+import 'package:thyme_frontend/screens/worker/worker_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_schedule_page.dart';
 import 'package:thyme_frontend/screens/owner/p06_substitute_manage_page.dart';
 
@@ -272,6 +274,54 @@ void main() {
       await tapText(tester, '지우기');
       await tapText(tester, '지우기');
       expect(server.sent('DELETE', '$_store/schedules/9'), hasLength(1));
+    });
+  });
+
+  group('7. 출퇴근 기록', () {
+    final now = DateTime.now();
+    final yesterday = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 1));
+    String ymd(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    Map<String, Object?> record({String? clockOut}) => {
+          'id': 21, 'employeeId': 3, 'employeeName': '유나', 'workDate': ymd(yesterday),
+          'clockIn': '${ymd(yesterday)}T17:05:00', 'clockOut': clockOut,
+          'scheduledStart': '17:00:00', 'scheduledEnd': '22:00:00', 'late': true,
+        };
+
+    testWidgets('점주: 퇴근 누락을 보여 주고, 고치면 근무표 끝 시각으로 PATCH', (tester) async {
+      var r = record();
+      server.routes['GET $_store/attendance'] = (_) => [r];
+      server.routes['PATCH $_store/attendance/21'] = (o) {
+        r = record(clockOut: (o.data as Map)['clockOut'] as String);
+        return r;
+      };
+      await pumpScreen(tester, const OwnerAttendancePage());
+      await settle(tester);
+      await tester.tap(find.byTooltip('전날'));
+      await settle(tester);
+      expect(server.sent('GET', '$_store/attendance?date=${ymd(yesterday)}'), hasLength(1));
+      expect(find.text('17:05 – 퇴근 안 찍음'), findsOneWidget);
+      expect(find.text('지각'), findsOneWidget);
+      await tapText(tester, '유나');
+      expect(find.text('퇴근 22:00'), findsOneWidget); // 비어 있으면 근무표 끝 시각을 먼저 채움
+      await tapText(tester, '저장');
+      expect(server.sent('PATCH', '$_store/attendance/21').single.$3,
+          {'clockIn': '${ymd(yesterday)}T17:05:00', 'clockOut': '${ymd(yesterday)}T22:00:00'});
+      expect(find.text('17:05 – 22:00'), findsOneWidget);
+    });
+
+    testWidgets('근로자: 이달 내 기록을 보기만 한다 (GET /attendance/my?from&to)', (tester) async {
+      server.routes['GET $_store/attendance/my'] = (_) => [record()];
+      await pumpScreen(tester, const WorkerAttendancePage());
+      await settle(tester);
+      final first = DateTime(now.year, now.month);
+      final last = DateTime(now.year, now.month + 1, 0);
+      expect(server.sent('GET', '$_store/attendance/my?from=${ymd(first)}&to=${ymd(last)}'), hasLength(1));
+      if (yesterday.month == now.month) {
+        expect(find.text('출근 1번 · 퇴근 안 찍음 1번'), findsOneWidget);
+        expect(find.text('17:05 – 퇴근 안 찍음'), findsOneWidget);
+      }
+      expect(find.textContaining('사장님께 고쳐 달라고'), findsOneWidget);
     });
   });
 

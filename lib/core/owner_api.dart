@@ -151,6 +151,22 @@ class OwnerApi {
 
   Future<void> deleteSchedule(int scheduleId) => _api.delete('$_store/schedules/$scheduleId');
 
+  // ── 출퇴근 기록
+
+  /// 그날 출퇴근 기록 (출근을 찍은 사람만 온다)
+  Future<List<AttendanceRecord>> attendance(DateTime date) async =>
+      _list(await _api.get('$_store/attendance', query: {'date': dateParam(date)}), AttendanceRecord.fromJson);
+
+  /// 퇴근 누락·잘못 찍은 기록 고치기 (출근 시각은 꼭, 퇴근은 비워 둘 수 있다)
+  Future<AttendanceRecord> correctAttendance(int id, {required DateTime clockIn, DateTime? clockOut}) async =>
+      AttendanceRecord.fromJson(await _api.patch('$_store/attendance/$id', data: {
+        'clockIn': _localDateTime(clockIn),
+        'clockOut': clockOut == null ? null : _localDateTime(clockOut),
+      }) as Map<String, dynamic>);
+
+  /// 서버 LocalDateTime 형식 "2026-10-31T09:00:00" (시간대 없이)
+  static String _localDateTime(DateTime t) => '${dateParam(t)}T${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}:00';
+
   Future<List<ScheduleEntry>> schedules() async => _list(await _api.get('$_store/schedules'), ScheduleEntry.fromJson);
 
   /// 다음 주기 근무표 3안 만들기. 매장 주기에 맞춰 월간은 month, 주간·2주는 weekStart 로 보낸다

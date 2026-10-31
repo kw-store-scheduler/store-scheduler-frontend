@@ -106,6 +106,44 @@ class PreferenceStatus {
       );
 }
 
+/// 출퇴근 기록 한 건 (GET /attendance?date= 점주, GET /attendance/my 근로자)
+/// scheduledStart·End 는 그날 근무표 시간(근무 없이 찍었으면 null), late = 근무 시작보다 늦게 출근
+class AttendanceRecord {
+  const AttendanceRecord({required this.id, required this.employeeId, required this.employeeName, required this.workDate, required this.clockIn, this.clockOut, this.scheduledStart, this.scheduledEnd, required this.late});
+
+  final int id;
+  final int employeeId;
+  final String employeeName;
+  final DateTime workDate;
+  final DateTime clockIn;
+  final DateTime? clockOut;
+  final String? scheduledStart;
+  final String? scheduledEnd;
+  final bool late;
+
+  /// 근무 끝난 지 지났는데 퇴근을 안 찍음 (근무표가 없으면 그날이 지났는지로 본다)
+  bool missingClockOut(DateTime now) {
+    if (clockOut != null) return false;
+    final end = scheduledEnd;
+    if (end == null) return now.isAfter(workDate.add(const Duration(days: 1)));
+    var endAt = workDate.add(Duration(hours: int.parse(end.substring(0, 2)), minutes: int.parse(end.substring(3, 5))));
+    if (scheduledStart != null && end.compareTo(scheduledStart!) <= 0) endAt = endAt.add(const Duration(days: 1)); // 자정 넘는 근무
+    return now.isAfter(endAt);
+  }
+
+  factory AttendanceRecord.fromJson(Map<String, dynamic> j) => AttendanceRecord(
+        id: j['id'] as int,
+        employeeId: j['employeeId'] as int,
+        employeeName: j['employeeName'] as String? ?? '',
+        workDate: DateTime.parse(j['workDate'] as String),
+        clockIn: DateTime.parse(j['clockIn'] as String),
+        clockOut: _date(j['clockOut']),
+        scheduledStart: j['scheduledStart'] as String?,
+        scheduledEnd: j['scheduledEnd'] as String?,
+        late: j['late'] as bool? ?? false,
+      );
+}
+
 /// 직원별 희망 제출 현황 한 줄 (GET /preferences?month=, M01)
 /// needsContractApproval = 계약 상한을 넘겨 신청했고 아직 승인되지 않음 (서버는 거절도 같은 값으로 준다)
 class PreferenceSubmissionRow {
