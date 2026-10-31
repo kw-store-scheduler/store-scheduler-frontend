@@ -30,6 +30,10 @@ class StoreApi {
     return current();
   }
 
+  /// 매장 이름·주소 바꾸기 (업종은 서버에서 바꿀 수 없다). 주소는 보낸 값으로 덮어써서 안 바꿔도 지금 값을 같이 보낸다
+  Future<StoreInfo> updateInfo({required String name, String? address}) async => StoreInfo.fromJson(
+      await _api.patch('/api/stores/${_session.requireStoreId()}', data: {'name': name, 'address': address}) as Map<String, dynamic>);
+
   /// 현재 매장 설정 (GET /api/stores 는 내 매장 목록이라 그중 현재 매장을 고른다)
   Future<StoreInfo> current() async {
     final id = _session.requireStoreId();

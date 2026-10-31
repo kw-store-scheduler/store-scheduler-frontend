@@ -90,6 +90,28 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
 
   String get _industryLabel => _industries.where((i) => i.code == _store?.industry).firstOrNull?.label ?? "";
 
+  /// 매장 이름·주소 고치기 (PATCH /api/stores/{id})
+  Future<void> _editInfo() async {
+    final s = _store!;
+    final r = await showModalBottomSheet<({String name, String address})>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ThymeColor.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => _StoreInfoSheet(name: s.name, address: s.address ?? ""),
+    );
+    if (r == null || !mounted) return;
+    try {
+      await StoreApi().updateInfo(name: r.name, address: r.address.isEmpty ? null : r.address);
+      await Session.instance.refreshMe(); // 헤더·매장 고르기에 쓰는 이름도 새로
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("매장 정보를 바꿨어요")));
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   Future<void> _storeInfo() async {
     final s = _store!;
     await showModalBottomSheet(
@@ -100,7 +122,18 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            ListTile(title: const Text("매장 이름"), trailing: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold))),
+            ListTile(
+              title: const Text("매장 이름 · 주소"),
+              subtitle: Text(s.address == null || s.address!.isEmpty ? "주소 없음" : s.address!),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                const Icon(Icons.chevron_right),
+              ]),
+              onTap: () {
+                Navigator.pop(context);
+                _editInfo();
+              },
+            ),
             ListTile(title: const Text("업종"), trailing: Text(_industryLabel, style: const TextStyle(fontWeight: FontWeight.bold))),
             ListTile(
               title: const Text("근무표 주기"),
@@ -116,7 +149,7 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
             ),
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Text("매장 이름·업종은 지금은 바꿀 수 없어요.", style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+              child: Text("업종은 바꿀 수 없어요. 업종에 맞춰 만든 역량·교대는 각 설정에서 고쳐 주세요.", style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
             ),
           ]),
         ),
@@ -265,6 +298,49 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
               ),
             const SizedBox(width: 8),
             const Icon(Icons.chevron_right, color: ThymeColor.icon),
+          ]),
+        ),
+      );
+}
+
+/// 매장 이름·주소 입력 시트 (입력칸은 시트가 닫힐 때 같이 정리된다)
+class _StoreInfoSheet extends StatefulWidget {
+  const _StoreInfoSheet({required this.name, required this.address});
+
+  final String name;
+  final String address;
+
+  @override
+  State<_StoreInfoSheet> createState() => _StoreInfoSheetState();
+}
+
+class _StoreInfoSheetState extends State<_StoreInfoSheet> {
+  late final _name = TextEditingController(text: widget.name)..addListener(() => setState(() {}));
+  late final _address = TextEditingController(text: widget.address);
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _address.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, 16 + MediaQuery.viewInsetsOf(context).bottom),
+        child: SafeArea(
+          top: false,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const Text("매장 정보", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            TextField(controller: _name, autofocus: true, decoration: const InputDecoration(labelText: "매장 이름")),
+            const SizedBox(height: 12),
+            TextField(controller: _address, decoration: const InputDecoration(labelText: "주소 (선택)")),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: _name.text.trim().isEmpty ? null : () => Navigator.pop(context, (name: _name.text.trim(), address: _address.text.trim())),
+              child: const Text("저장"),
+            ),
           ]),
         ),
       );

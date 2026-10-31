@@ -12,6 +12,7 @@ import 'package:thyme_frontend/screens/owner/owner_notice_task_page.dart';
 import 'package:thyme_frontend/screens/worker/worker_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_schedule_page.dart';
 import 'package:thyme_frontend/screens/owner/p06_substitute_manage_page.dart';
+import 'package:thyme_frontend/screens/owner/p08_store_settings_page.dart';
 
 import 'test_helpers.dart';
 
@@ -323,6 +324,36 @@ void main() {
       }
       expect(find.textContaining('사장님께 고쳐 달라고'), findsOneWidget);
     });
+  });
+
+  testWidgets('8. 매장 이름·주소 고치기: PATCH /api/stores/{id} 에 이름과 주소를 같이', (tester) async {
+    _ownerBasics(server);
+    var store = <String, Object?>{'id': 7, 'name': '구시대 커피', 'address': '서울 노원구', 'storeCode': 'ABCD1234', 'industry': 'CAFE'};
+    server.routes['GET /api/stores'] = (_) => [store];
+    server.routes['GET $_store/shifts'] = (_) => [];
+    server.routes['GET $_store/skill-windows'] = (_) => [];
+    server.routes['GET $_store/staffing-exceptions'] = (_) => [];
+    server.routes['GET $_store/open-shifts'] = (_) => {'items': []};
+    server.routes['GET /api/stores/industries'] = (_) => [];
+    server.routes['GET /api/users/me'] = (_) => {
+          'id': 1, 'username': 'owner01', 'role': 'MANAGER',
+          'ownedStores': [{'id': 7, 'name': store['name'], 'industry': 'CAFE', 'storeCode': 'ABCD1234'}], 'memberships': [],
+        };
+    server.routes['PATCH $_store'] = (o) {
+      store = {...store, ...(o.data as Map).cast<String, Object?>()};
+      return store;
+    };
+    await pumpScreen(tester, const StoreSettingsPage());
+    await settle(tester);
+    await tapText(tester, '매장 정보 · 업종 · 주기');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('지금은 바꿀 수 없어요'), findsNothing);
+    await tapText(tester, '매장 이름 · 주소');
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).at(0), '구시대 커피 광운대점');
+    await tapText(tester, '저장');
+    expect(server.sent('PATCH', _store).single.$3, {'name': '구시대 커피 광운대점', 'address': '서울 노원구'});
+    expect(server.sent('GET', '/api/users/me'), isNotEmpty); // 매장 이름을 쓰는 곳도 새로
   });
 
   group('4. 계약 초과 근무량 승인 (M01)', () {
