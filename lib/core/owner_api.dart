@@ -2,6 +2,7 @@ import '../models/owner.dart';
 import '../models/preference.dart' show toServerEnum;
 import '../models/store.dart';
 import '../models/user.dart';
+import '../models/worker.dart' show Trade;
 import 'api_service.dart';
 import 'session.dart';
 
@@ -164,6 +165,16 @@ class OwnerApi {
 
   /// 직원끼리 구한 대타 승인 / 거절
   Future<void> approveSwap(int requestId) => _api.post('$_store/swap-requests/$requestId/approve');
+
+  // ── 근무 바꾸기 (W09 에서 직원끼리 넘기기·맞교환 → 동료 수락 → 사장님 승인)
+
+  /// 진행 중인 근무 바꾸기 (동료 응답 대기 · 사장님 승인 대기)
+  Future<List<Trade>> trades() async => _list(await _api.get('$_store/trades'), Trade.fromJson);
+
+  /// 동료가 수락한 요청만 승인할 수 있다. 승인하면 근무표가 바뀐다 (매주 반복이면 그달 남은 같은 근무까지)
+  Future<void> approveTrade(int tradeId) => _api.post('$_store/trades/$tradeId/approve');
+
+  Future<void> rejectTrade(int tradeId) => _api.post('$_store/trades/$tradeId/reject');
 
   Future<void> rejectSubstitute(int requestId) => _api.post('$_store/swap-requests/$requestId/reject-substitute');
 
