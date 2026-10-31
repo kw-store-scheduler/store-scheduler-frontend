@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:thyme_frontend/core/api_service.dart';
 import 'package:thyme_frontend/core/session.dart';
 import 'package:thyme_frontend/screens/owner/m01_worker_approval_page.dart';
+import 'package:thyme_frontend/screens/owner/owner_notice_task_page.dart';
 import 'package:thyme_frontend/screens/owner/p06_substitute_manage_page.dart';
 
 import 'test_helpers.dart';
@@ -139,6 +140,64 @@ void main() {
       await settle(tester);
       await tapText(tester, '거절');
       expect(server.sent('POST', '$_store/trades/1/reject'), hasLength(1));
+    });
+  });
+
+  group('5. 점주 공지·업무 작성', () {
+    String today() {
+      final d = DateTime.now();
+      return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    }
+
+    testWidgets('공지를 필독으로 올리면 POST /notices, 목록에 뜬다', (tester) async {
+      final notices = <Map<String, Object?>>[];
+      server.routes['GET $_store/notices'] = (_) => notices;
+      server.routes['GET $_store/tasks'] = (_) => [];
+      server.routes['POST $_store/notices'] = (o) {
+        final b = o.data as Map;
+        final n = {'id': 1, 'title': b['title'], 'content': b['content'], 'pinned': b['pinned'], 'createdAt': '2026-10-31T09:00:00'};
+        notices.add(n);
+        return n;
+      };
+      await pumpScreen(tester, const NoticeTaskManagePage());
+      await settle(tester);
+      await tapText(tester, '공지 쓰기');
+      await tester.enterText(find.byType(TextField).at(0), '11월 근무표 나왔어요');
+      await tester.enterText(find.byType(TextField).at(1), '확인 부탁해요');
+      await tester.tap(find.text('필독으로 맨 위에 고정'));
+      await tester.pump();
+      await tapText(tester, '올리기');
+      expect(server.sent('POST', '$_store/notices').single.$3, {'title': '11월 근무표 나왔어요', 'content': '확인 부탁해요', 'pinned': true});
+      expect(find.text('11월 근무표 나왔어요'), findsOneWidget);
+      expect(find.text('필독'), findsOneWidget);
+    });
+
+    testWidgets('업무를 교대에 등록하면 POST /tasks {date, title, shiftId}', (tester) async {
+      final tasks = <Map<String, Object?>>[];
+      server.routes['GET $_store/notices'] = (_) => [];
+      server.routes['GET $_store/tasks'] = (_) => tasks;
+      server.routes['GET $_store/shifts'] = (_) => [
+            {'id': 11, 'name': '오픈', 'startTime': '09:00:00', 'endTime': '14:00:00'},
+          ];
+      server.routes['GET $_store/roster'] = (_) => {'employees': [{'employeeId': 3, 'name': '유나'}]};
+      server.routes['POST $_store/tasks'] = (o) {
+        final b = o.data as Map;
+        final t = {'id': 5, 'date': b['date'], 'title': b['title'], 'shiftId': 11, 'shiftName': '오픈', 'done': false};
+        tasks.add(t);
+        return t;
+      };
+      await pumpScreen(tester, const NoticeTaskManagePage());
+      await settle(tester);
+      await tapText(tester, '업무');
+      expect(server.sent('GET', '$_store/tasks?date=${today()}'), isNotEmpty);
+      await tapText(tester, '업무 추가');
+      await tester.enterText(find.byType(TextField), '우유 입고 확인');
+      await tester.tap(find.text('오픈 교대'));
+      await tester.pump();
+      await tapText(tester, '등록');
+      expect(server.sent('POST', '$_store/tasks').single.$3, {'date': today(), 'title': '우유 입고 확인', 'shiftId': 11, 'assigneeId': null});
+      expect(find.text('우유 입고 확인'), findsOneWidget);
+      expect(find.text('오픈'), findsOneWidget);
     });
   });
 

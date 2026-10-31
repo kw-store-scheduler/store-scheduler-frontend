@@ -14,6 +14,7 @@ import 'package:thyme_frontend/screens/owner/o05_labor_law_page.dart';
 import 'package:thyme_frontend/screens/owner/p01_owner_home_page.dart';
 import 'package:thyme_frontend/screens/owner/m05_proposal_compare_page.dart';
 import 'package:thyme_frontend/screens/owner/m02_labor_cost_page.dart';
+import 'package:thyme_frontend/screens/owner/owner_notice_task_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_schedule_page.dart';
 import 'package:thyme_frontend/models/owner.dart';
 import 'package:thyme_frontend/screens/owner/p02_registration_complete_page.dart';
@@ -109,6 +110,7 @@ void main() {
     'WorkerListPage': () => const WorkerListPage(),
     'WorkerProfileConfirmPage': () => const WorkerProfileConfirmPage(employeeId: 1),
     'LaborCostPage': () => const LaborCostPage(),
+    'NoticeTaskManagePage': () => const NoticeTaskManagePage(),
     'OwnerSchedulePage': () => const OwnerSchedulePage(),
     'AbsenceReportPage': () => const AbsenceReportPage(),
     'ApprovalWaitingPage': () => const ApprovalWaitingPage(fullTime: false, name: '유나', storeName: '테스트 카페'),

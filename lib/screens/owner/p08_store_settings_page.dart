@@ -19,6 +19,7 @@ import 'o03_store_shift_setup_page.dart';
 import 'o04_curation_page.dart';
 import 'o05_labor_law_page.dart';
 import 'o06_exception_days_page.dart';
+import 'owner_notice_task_page.dart';
 import 'p07_worker_list_page.dart';
 import 'p09_open_shift_post_page.dart';
 
@@ -189,6 +190,7 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
                           _row("근무자 목록 · 직원/알바", onTap: () => _open(const WorkerListPage())),
                           _row("가입 · 연차 승인", badge: _todo, onTap: () => _open(const WorkerApprovalPage())),
                           _row("빈 근무 게시판", badge: _openShifts, onTap: () => _open(const OpenShiftPostPage())),
+                          _row("공지 · 업무", onTap: () => _open(const NoticeTaskManagePage())),
                         ]),
                         _group("계정", [
                           _row("매장 코드 다시 만들기", onTap: _reissue),
