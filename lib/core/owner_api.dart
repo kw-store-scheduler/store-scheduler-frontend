@@ -128,6 +128,29 @@ class OwnerApi {
 
   // ── 근무표 (근무표 탭 · P03 · M05 · P04)
 
+  /// 근무 직접 추가. 휴무·가용 시간·주 52시간 같은 규칙에 걸리면 400 + 사유 → 점주가 그래도 하면 force: true 로 다시
+  Future<ScheduleEntry> addSchedule({required int employeeId, required DateTime date, required String start, required String end, bool force = false}) async =>
+      ScheduleEntry.fromJson(await _api.post('$_store/schedules', data: {
+        'employeeId': employeeId,
+        'workDate': dateParam(date),
+        'startTime': start,
+        'endTime': end,
+        'force': force,
+      }) as Map<String, dynamic>);
+
+  /// 근무 고치기 (날짜·시간, employeeId 를 주면 담당자도). 대타·근무 바꾸기가 진행 중인 근무는 서버가 막는다
+  Future<ScheduleEntry> updateSchedule(int scheduleId,
+          {required int employeeId, required DateTime date, required String start, required String end, bool force = false}) async =>
+      ScheduleEntry.fromJson(await _api.put('$_store/schedules/$scheduleId', data: {
+        'employeeId': employeeId,
+        'workDate': dateParam(date),
+        'startTime': start,
+        'endTime': end,
+        'force': force,
+      }) as Map<String, dynamic>);
+
+  Future<void> deleteSchedule(int scheduleId) => _api.delete('$_store/schedules/$scheduleId');
+
   Future<List<ScheduleEntry>> schedules() async => _list(await _api.get('$_store/schedules'), ScheduleEntry.fromJson);
 
   /// 다음 주기 근무표 3안 만들기. 매장 주기에 맞춰 월간은 month, 주간·2주는 weekStart 로 보낸다

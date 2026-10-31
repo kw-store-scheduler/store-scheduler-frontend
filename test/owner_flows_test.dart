@@ -8,6 +8,7 @@ import 'package:thyme_frontend/core/api_service.dart';
 import 'package:thyme_frontend/core/session.dart';
 import 'package:thyme_frontend/screens/owner/m01_worker_approval_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_notice_task_page.dart';
+import 'package:thyme_frontend/screens/owner/owner_schedule_page.dart';
 import 'package:thyme_frontend/screens/owner/p06_substitute_manage_page.dart';
 
 import 'test_helpers.dart';
@@ -198,6 +199,79 @@ void main() {
       expect(server.sent('POST', '$_store/tasks').single.$3, {'date': today(), 'title': '우유 입고 확인', 'shiftId': 11, 'assigneeId': null});
       expect(find.text('우유 입고 확인'), findsOneWidget);
       expect(find.text('오픈'), findsOneWidget);
+    });
+  });
+
+  group('6. 점주 근무 직접 추가·고치기·지우기', () {
+    final now = DateTime.now();
+    final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+    String ymd(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    void routes(List<Map<String, Object?>> entries) {
+      server.routes['GET $_store/schedules'] = (_) => entries;
+      server.routes['GET $_store/schedules/plan'] = (_) => {
+            'cycle': 'WEEKLY', 'periodStart': ymd(monday.add(const Duration(days: 7))), 'periodEnd': ymd(monday.add(const Duration(days: 13))),
+            'preferenceDeadline': ymd(monday.add(const Duration(days: 5))), 'autoGenerate': false, 'generateAt': ymd(monday.add(const Duration(days: 5))),
+          };
+      server.routes['GET $_store/roster'] = (_) => {'employees': [{'employeeId': 3, 'name': '유나'}, {'employeeId': 4, 'name': '하준'}]};
+      server.routes['GET $_store/shifts'] = (_) => [{'id': 11, 'name': '오픈', 'startTime': '09:00:00', 'endTime': '14:00:00'}];
+    }
+
+    testWidgets('규칙에 걸리면(400) 사유를 보여 주고, 그래도 배정하면 force: true 로 다시 보낸다', (tester) async {
+      final entries = <Map<String, Object?>>[];
+      routes(entries);
+      server.routes['POST $_store/schedules'] = (o) {
+        final b = o.data as Map;
+        if (b['force'] != true) return ({'message': '유나님은 이날 휴무를 신청했습니다.'}, 400);
+        final e = {'id': 9, 'employeeId': 3, 'employeeName': '유나', 'workDate': b['workDate'], 'startTime': '09:00:00', 'endTime': '14:00:00'};
+        entries.add(e);
+        return e;
+      };
+      await pumpScreen(tester, const OwnerSchedulePage());
+      await settle(tester);
+      await tester.tap(find.byTooltip('${monday.month}/${monday.day} 근무 추가'));
+      await settle(tester);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('유나'));
+      await tester.tap(find.text('오픈 09–14'));
+      await tester.pump();
+      await tapText(tester, '넣기');
+      await tester.pumpAndSettle();
+      expect(find.text('근무 규칙에 걸려요'), findsOneWidget);
+      expect(find.textContaining('유나님은 이날 휴무를 신청했습니다.'), findsOneWidget);
+      await tapText(tester, '그래도 배정');
+      final posts = server.sent('POST', '$_store/schedules').toList();
+      expect(posts.map((p) => (p.$3 as Map)['force']), [false, true]);
+      expect(posts.last.$3, {'employeeId': 3, 'workDate': ymd(monday), 'startTime': '09:00', 'endTime': '14:00', 'force': true});
+      expect(find.text('유나 09–14'), findsOneWidget);
+    });
+
+    testWidgets('근무를 눌러 담당자를 바꾸면 PUT, 지우기는 DELETE', (tester) async {
+      final entries = [
+        {'id': 9, 'employeeId': 3, 'employeeName': '유나', 'workDate': ymd(monday), 'startTime': '09:00:00', 'endTime': '14:00:00', 'reasons': ['오픈 가능']},
+      ];
+      routes(entries);
+      server.routes['PUT $_store/schedules/9'] = (o) => {...entries.first, 'employeeId': 4, 'employeeName': '하준'};
+      server.routes['DELETE $_store/schedules/9'] = (_) => null;
+      await pumpScreen(tester, const OwnerSchedulePage());
+      await settle(tester);
+      await tester.tap(find.text('유나 09–14'));
+      await tester.pumpAndSettle();
+      await tapText(tester, '고치기');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('하준'));
+      await tester.pump();
+      await tapText(tester, '고치기');
+      expect(server.sent('PUT', '$_store/schedules/9').single.$3,
+          {'employeeId': 4, 'workDate': ymd(monday), 'startTime': '09:00', 'endTime': '14:00', 'force': false});
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('유나 09–14'));
+      await tester.pumpAndSettle();
+      await tapText(tester, '지우기');
+      await tapText(tester, '지우기');
+      expect(server.sent('DELETE', '$_store/schedules/9'), hasLength(1));
     });
   });
 

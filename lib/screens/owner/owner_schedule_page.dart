@@ -11,7 +11,9 @@ import '../../widgets/thyme_owner_tab_bar.dart';
 import 'p03_generating_schedule_page.dart';
 
 /// 점주 하단 탭 '근무표' (시안 없음: P01 탭 구성에만 있음). 확정 근무표(GET /schedules)를 주 단위로 보고,
-/// 다음 주기 일정(GET /schedules/plan)과 '근무표 만들기'(P03)로 간다
+/// 다음 주기 일정(GET /schedules/plan)과 '근무표 만들기'(P03)로 간다.
+/// 날짜의 + 로 근무 직접 추가, 근무를 누르면 배정 사유 · 고치기(담당자·날짜·시간) · 지우기.
+/// 규칙(휴무·가용 시간·주 52시간 등)에 걸리면 서버 사유를 보여 주고, 점주가 그래도 하면 force 로 다시 보낸다
 class OwnerSchedulePage extends StatefulWidget {
   const OwnerSchedulePage({super.key});
 
@@ -48,6 +50,89 @@ class _OwnerSchedulePageState extends State<OwnerSchedulePage> {
     }
   }
 
+  /// 추가·고치기 공통: 먼저 규칙대로 보내고, 400(규칙 위반 등)이면 사유를 보여 준 뒤 원하면 force 로 다시
+  Future<void> _save(Future<void> Function(bool force) send, String done) async {
+    try {
+      await send(false);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.statusCode != 400) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        return;
+      }
+      final force = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("근무 규칙에 걸려요"),
+          content: Text("${e.message}\n\n사장님 판단으로 그래도 배정할까요?"),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("취소")),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("그래도 배정")),
+          ],
+        ),
+      );
+      if (force != true || !mounted) return;
+      try {
+        await send(true);
+      } on ApiException catch (e2) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e2.message)));
+        return;
+      }
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(done)));
+    await _load();
+  }
+
+  /// 근무 추가·고치기 시트 (직원 목록·교대 시간은 열 때 받는다)
+  Future<void> _edit({DateTime? day, ScheduleEntry? entry}) async {
+    final people = await OwnerApi().roster().then((r) => r.employees).catchError((_) => <RosterRow>[]);
+    final shifts = await StoreApi().shifts().catchError((_) => <ShiftInfo>[]);
+    if (!mounted) return;
+    if (people.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("근무를 넣을 직원이 없어요. 먼저 직원을 승인해 주세요.")));
+      return;
+    }
+    final r = await showModalBottomSheet<_Edit>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ThymeColor.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => _ScheduleEditSheet(people: people, shifts: shifts, day: day ?? entry!.workDate, entry: entry),
+    );
+    if (r == null || !mounted) return;
+    final api = OwnerApi();
+    if (entry == null) {
+      await _save((force) => api.addSchedule(employeeId: r.employeeId, date: r.date, start: r.start, end: r.end, force: force), "근무를 넣었어요");
+    } else {
+      await _save((force) => api.updateSchedule(entry.id, employeeId: r.employeeId, date: r.date, start: r.start, end: r.end, force: force),
+          "근무를 고쳤어요");
+    }
+  }
+
+  Future<void> _delete(ScheduleEntry e) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("근무 지우기"),
+        content: Text("${e.employeeName} · ${mdw(e.workDate)} ${hourRange(e.startTime, e.endTime)}시 근무를 지워요."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("취소")),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("지우기", style: TextStyle(color: ThymeColor.dangerText))),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await OwnerApi().deleteSchedule(e.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("근무를 지웠어요")));
+      await _load();
+    } on ApiException catch (err) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err.message)));
+    }
+  }
+
   Future<void> _make() async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => const GeneratingSchedulePage()));
     if (mounted) _load();
@@ -68,6 +153,29 @@ class _OwnerSchedulePageState extends State<OwnerSchedulePage> {
               const SizedBox(height: 6),
               if (e.reasons.isEmpty) const Text("직접 넣은 근무예요.", style: TextStyle(color: ThymeColor.textSub)),
               for (final r in e.reasons) Text("· $r", style: const TextStyle(fontSize: 14, color: ThymeColor.charcoal, height: 1.5)),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(foregroundColor: ThymeColor.dangerText),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _delete(e);
+                    },
+                    child: const Text("지우기"),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _edit(entry: e);
+                    },
+                    child: const Text("고치기"),
+                  ),
+                ),
+              ]),
             ]),
           ),
         ),
@@ -147,11 +255,10 @@ class _OwnerSchedulePageState extends State<OwnerSchedulePage> {
                             margin: const EdgeInsets.only(top: 8),
                             padding: const EdgeInsets.all(18),
                             decoration: BoxDecoration(color: ThymeColor.surfaceSub, borderRadius: BorderRadius.circular(16)),
-                            child: const Text("아직 확정된 근무표가 없어요. '근무표 만들기'로 3안을 받아 하나를 확정해 주세요.",
+                            child: const Text("아직 확정된 근무표가 없어요. '근무표 만들기'로 3안을 받아 하나를 확정하거나, 날짜의 + 로 직접 넣어 주세요.",
                                 style: TextStyle(fontSize: 14, color: ThymeColor.textSub, height: 1.5)),
-                          )
-                        else
-                          for (final d in days) _day(d, [for (final e in entries) if (DateUtils.isSameDay(e.workDate, d)) e]),
+                          ),
+                        for (final d in days) _day(d, [for (final e in entries) if (DateUtils.isSameDay(e.workDate, d)) e]),
                       ]),
           ),
         ]),
@@ -191,7 +298,117 @@ class _OwnerSchedulePageState extends State<OwnerSchedulePage> {
                     ),
                 ]),
         ),
+        IconButton(
+          tooltip: "${d.month}/${d.day} 근무 추가",
+          visualDensity: VisualDensity.compact,
+          onPressed: () => _edit(day: d),
+          icon: const Icon(Icons.add_circle_outline, color: ThymeColor.textSub),
+        ),
       ]),
+    );
+  }
+}
+
+/// 근무 추가·고치기 결과
+typedef _Edit = ({int employeeId, DateTime date, String start, String end});
+
+/// 근무 추가·고치기 시트: 직원 · 날짜 · 시간 (교대를 누르면 그 시간으로)
+class _ScheduleEditSheet extends StatefulWidget {
+  const _ScheduleEditSheet({required this.people, required this.shifts, required this.day, this.entry});
+
+  final List<RosterRow> people;
+  final List<ShiftInfo> shifts;
+  final DateTime day;
+  final ScheduleEntry? entry;
+
+  @override
+  State<_ScheduleEditSheet> createState() => _ScheduleEditSheetState();
+}
+
+class _ScheduleEditSheetState extends State<_ScheduleEditSheet> {
+  late int? _employeeId = widget.entry?.employeeId;
+  late DateTime _date = widget.day;
+  late String? _start = widget.entry == null ? null : hhmm(widget.entry!.startTime);
+  late String? _end = widget.entry == null ? null : hhmm(widget.entry!.endTime);
+
+  Future<void> _pickTime(bool start) async {
+    final cur = start ? _start : _end;
+    final t = await showTimePicker(
+      context: context,
+      initialTime: cur == null ? TimeOfDay(hour: start ? 9 : 18, minute: 0) : TimeOfDay(hour: int.parse(cur.substring(0, 2)), minute: int.parse(cur.substring(3, 5))),
+      helpText: start ? "시작 시간" : "끝나는 시간",
+    );
+    if (t == null) return;
+    final v = "${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}";
+    setState(() => start ? _start = v : _end = v);
+  }
+
+  Future<void> _pickDate() async {
+    final d = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime.now().subtract(const Duration(days: 60)),
+      lastDate: DateTime.now().add(const Duration(days: 120)),
+      helpText: "근무 날짜",
+    );
+    if (d != null) setState(() => _date = d);
+  }
+
+  Widget _chip(String label, bool selected, VoidCallback onTap) => ChoiceChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (_) => onTap(),
+        selectedColor: ThymeColor.primary,
+        labelStyle: TextStyle(color: selected ? ThymeColor.onPrimary : ThymeColor.text, fontWeight: FontWeight.bold),
+        showCheckmark: false,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final ok = _employeeId != null && _start != null && _end != null;
+    TextStyle label() => const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.textSub);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 16 + MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text(widget.entry == null ? "근무 추가" : "근무 고치기", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Text("누가", style: label()),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final p in widget.people) _chip(p.name, _employeeId == p.employeeId, () => setState(() => _employeeId = p.employeeId)),
+            ]),
+            const SizedBox(height: 16),
+            Text("언제", style: label()),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(onPressed: _pickDate, icon: const Icon(Icons.event), label: Text(mdw(_date))),
+            if (widget.shifts.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final s in widget.shifts)
+                  _chip("${s.name} ${hourRange(s.startTime, s.endTime)}", _start == hhmm(s.startTime) && _end == hhmm(s.endTime),
+                      () => setState(() {
+                            _start = hhmm(s.startTime);
+                            _end = hhmm(s.endTime);
+                          })),
+              ]),
+            ],
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(child: OutlinedButton(onPressed: () => _pickTime(true), child: Text("시작 ${_start ?? '--:--'}"))),
+              const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text("–")),
+              Expanded(child: OutlinedButton(onPressed: () => _pickTime(false), child: Text("끝 ${_end ?? '--:--'}"))),
+            ]),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: ok ? () => Navigator.pop<_Edit>(context, (employeeId: _employeeId!, date: _date, start: _start!, end: _end!)) : null,
+              child: Text(widget.entry == null ? "넣기" : "고치기"),
+            ),
+          ]),
+        ),
+      ),
     );
   }
 }
