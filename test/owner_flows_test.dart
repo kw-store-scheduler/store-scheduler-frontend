@@ -419,18 +419,20 @@ void main() {
   });
 
   group('4. 계약 초과 근무량 승인 (M01)', () {
-    testWidgets('다음 달 희망에서 계약 상한을 넘긴 사람만 보이고, 승인하면 contract-exceed approved=true', (tester) async {
+    testWidgets('계약 상한을 넘겨 결정 전(PENDING)인 사람만 시간과 함께 보이고, 승인하면 contract-exceed approved=true', (tester) async {
       _ownerBasics(server);
-      var needs = true;
+      var status = 'PENDING';
       server.routes['GET $_store/preferences'] = (_) => {
             'month': '2026-11',
             'employees': [
-              {'employeeId': 3, 'name': '유나', 'submitted': true, 'late': false, 'needsContractApproval': needs},
-              {'employeeId': 4, 'name': '하준', 'submitted': true, 'late': false, 'needsContractApproval': false},
+              {'employeeId': 3, 'name': '유나', 'submitted': true, 'late': false, 'needsContractApproval': status == 'PENDING',
+                'contractExceedStatus': status, 'requestedMaxMonthlyHours': 120, 'contractMaxMonthlyHours': 87},
+              {'employeeId': 4, 'name': '하준', 'submitted': true, 'late': false, 'needsContractApproval': false,
+                'contractExceedStatus': 'REJECTED', 'requestedMaxMonthlyHours': 100, 'contractMaxMonthlyHours': 87},
             ],
           };
       server.routes['POST $_store/preferences/3/contract-exceed'] = (_) {
-        needs = false;
+        status = 'APPROVED';
         return {};
       };
       await pumpScreen(tester, const WorkerApprovalPage());
@@ -439,7 +441,8 @@ void main() {
       expect(server.sent('GET', '$_store/preferences?month=2026-11'), hasLength(1));
       expect(find.text('11월 계약보다 많이 일하기 1'), findsOneWidget);
       expect(find.text('유나'), findsOneWidget);
-      expect(find.text('하준'), findsNothing);
+      expect(find.text('최대 월 120시간 신청 · 계약 상한 월 87시간'), findsOneWidget);
+      expect(find.text('하준'), findsNothing); // 이미 거절한 신청은 다시 묻지 않는다
       await tapText(tester, '승인');
       expect(server.sent('POST', '$_store/preferences/3/contract-exceed?month=2026-11&approved=true'), hasLength(1));
       expect(find.text('11월 계약보다 많이 일하기 1'), findsNothing);

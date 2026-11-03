@@ -300,9 +300,12 @@ class _WorkerApprovalPageState extends State<WorkerApprovalPage> {
         ]),
       );
 
-  /// 계약 상한을 넘긴 근무량 신청 (W06). 서버가 거절한 것도 '승인 전'으로 주기 때문에 승인 버튼은 남는다
+  /// 계약 상한을 넘긴 근무량 신청 (W06) 중 아직 결정하지 않은 것
   Widget _exceedCard(PreferenceSubmissionRow s) {
     final month = _prefs!.month;
+    final hours = s.requestedMaxMonthlyHours != null && s.contractMaxMonthlyHours != null
+        ? "최대 월 ${s.requestedMaxMonthlyHours}시간 신청 · 계약 상한 월 ${s.contractMaxMonthlyHours}시간"
+        : "계약 상한보다 많이 일하고 싶대요";
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
@@ -312,7 +315,7 @@ class _WorkerApprovalPageState extends State<WorkerApprovalPage> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(s.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
             const SizedBox(height: 4),
-            const Text("계약 상한보다 많이 일하고 싶대요", style: TextStyle(fontSize: 14, color: ThymeColor.textSub)),
+            Text(hours, style: const TextStyle(fontSize: 14, color: ThymeColor.textSub)),
           ]),
         ),
         TextButton(

@@ -95,6 +95,10 @@ class PreferenceMonth {
   final List<PreferenceCell> cells;
   final Map<String, dynamic>? submission;
 
+  /// 지난번에 낸 최대 시간이 계약 상한을 넘었을 때만 PENDING·APPROVED·REJECTED (사장님 결정)
+  String? get contractExceedStatus => submission?['contractExceedStatus'] as String?;
+  int? get submittedMaxMonthlyHours => (submission?['maxMonthlyHours'] as num?)?.toInt();
+
   factory PreferenceMonth.fromJson(Map<String, dynamic> j) => PreferenceMonth(
         month: j['month'] as String,
         deadline: j['deadline'] == null ? null : DateTime.parse(j['deadline'] as String),

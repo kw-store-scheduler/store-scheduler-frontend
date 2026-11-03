@@ -7,6 +7,8 @@ import 'package:thyme_frontend/core/api_service.dart';
 import 'package:thyme_frontend/core/session.dart';
 import 'package:thyme_frontend/screens/worker/w00_load_last_month_page.dart';
 import 'package:thyme_frontend/screens/worker/h01_part_timer_home_page.dart';
+import 'package:thyme_frontend/screens/worker/w06_work_hours_page.dart';
+import 'package:thyme_frontend/models/preference.dart';
 
 import 'test_helpers.dart';
 
@@ -213,5 +215,40 @@ void main() {
     await tapNext(tester, '시작하기');
     await tapNext(tester, '다음'); // W11 → W02
     expect(find.text('선호'), findsOneWidget); // 범례만 (불러온 칸 없음)
+  });
+
+  group('W06 계약 초과: 같은 최대 시간으로 이미 냈으면 사장님 결정을 보여 준다', () {
+    Future<void> open(WidgetTester tester, String? status, {int submittedMax = 86}) async {
+      Session.instance.storeId = 7;
+      final draft = PreferenceDraft(month: DateTime(2026, 11))
+        ..maxMonthlyHours = 86
+        ..view = PreferenceMonth.fromJson({
+          ..._FakeServer.month(),
+          'submitted': true,
+          'submission': {'submittedAt': '2026-10-20T10:00:00', 'maxMonthlyHours': submittedMax, 'contractExceedStatus': status},
+        });
+      await pumpScreen(tester, WorkHoursPage(draft: draft));
+      await settle(tester);
+    }
+
+    testWidgets('거절', (tester) async {
+      await open(tester, 'REJECTED');
+      expect(find.textContaining('사장님이 이 시간은 거절해서'), findsOneWidget);
+    });
+
+    testWidgets('승인', (tester) async {
+      await open(tester, 'APPROVED');
+      expect(find.textContaining('승인했어요'), findsOneWidget);
+    });
+
+    testWidgets('대기', (tester) async {
+      await open(tester, 'PENDING');
+      expect(find.textContaining('사장님 승인을 기다리고 있어요'), findsOneWidget);
+    });
+
+    testWidgets('시간이 달라지면 처음 안내 (다시 승인을 받아야 함)', (tester) async {
+      await open(tester, 'REJECTED', submittedMax: 100);
+      expect(find.textContaining('계약 상한보다 많이 일하려면 사장님 승인이 필요해요'), findsOneWidget);
+    });
   });
 }

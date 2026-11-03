@@ -157,7 +157,7 @@ class _WorkHoursPageState extends State<WorkHoursPage> {
                 ],
                 if (w.exceedsContract) ...[
                   const SizedBox(height: 12),
-                  _banner(ThymeColor.infoBg, ThymeColor.info, ThymeColor.infoText, "계약 상한보다 많이 일하려면 사장님 승인이 필요해요. 제출하면 사장님 승인 목록에 올라가고, 승인 전에는 계약 시간까지만 배치돼요."),
+                  _exceedBanner(),
                 ],
                 if (w.expectedPayMin != null || w.expectedPayMax != null) ...[
                   const SizedBox(height: 12),
@@ -224,6 +224,23 @@ class _WorkHoursPageState extends State<WorkHoursPage> {
           IconButton.filled(tooltip: "$title 늘리기", onPressed: inc, icon: const Icon(Icons.add)),
         ]),
       );
+
+  /// 계약 초과 안내. 이미 같은 최대 시간으로 냈으면 사장님 결정(대기·승인·거절)을 보여 준다
+  /// (서버는 같은 시간으로 다시 내면 결정을 유지하고, 시간을 바꾸면 다시 승인을 받는다)
+  Widget _exceedBanner() {
+    final view = widget.draft.view;
+    final same = view != null && view.submittedMaxMonthlyHours != null && view.submittedMaxMonthlyHours == (_max ?? _w?.maxMonthly);
+    return switch (same ? view.contractExceedStatus : null) {
+      'APPROVED' => _banner(ThymeColor.successBg, ThymeColor.successText, ThymeColor.successText,
+          "사장님이 계약보다 많이 일하는 걸 승인했어요. 이 시간 그대로 내면 승인이 유지돼요."),
+      'REJECTED' => _banner(ThymeColor.warnBg, ThymeColor.warn, ThymeColor.warnText,
+          "사장님이 이 시간은 거절해서 계약 시간까지만 배치돼요. 시간을 바꿔 내면 다시 승인을 요청해요."),
+      'PENDING' => _banner(ThymeColor.infoBg, ThymeColor.info, ThymeColor.infoText,
+          "사장님 승인을 기다리고 있어요. 승인 전에는 계약 시간까지만 배치돼요."),
+      _ => _banner(ThymeColor.infoBg, ThymeColor.info, ThymeColor.infoText,
+          "계약 상한보다 많이 일하려면 사장님 승인이 필요해요. 제출하면 사장님 승인 목록에 올라가고, 승인 전에는 계약 시간까지만 배치돼요."),
+    };
+  }
 
   Widget _banner(Color bg, Color dot, Color fg, String text) => Container(
         padding: const EdgeInsets.all(16),

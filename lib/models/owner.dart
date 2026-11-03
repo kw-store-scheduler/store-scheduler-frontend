@@ -189,15 +189,30 @@ class StaffingSuggestions {
 }
 
 /// 직원별 희망 제출 현황 한 줄 (GET /preferences?month=, M01)
-/// needsContractApproval = 계약 상한을 넘겨 신청했고 아직 승인되지 않음 (서버는 거절도 같은 값으로 준다)
+/// contractExceedStatus = 계약 상한을 넘겨 신청했을 때만 PENDING·APPROVED·REJECTED (넘기지 않았으면 null).
+/// needsContractApproval 은 PENDING 일 때만 true
 class PreferenceSubmissionRow {
-  const PreferenceSubmissionRow({required this.employeeId, required this.name, required this.submitted, required this.late, required this.needsContractApproval});
+  const PreferenceSubmissionRow({
+    required this.employeeId,
+    required this.name,
+    required this.submitted,
+    required this.late,
+    required this.needsContractApproval,
+    this.contractExceedStatus,
+    this.requestedMaxMonthlyHours,
+    this.contractMaxMonthlyHours,
+  });
 
   final int employeeId;
   final String name;
   final bool submitted;
   final bool late;
   final bool needsContractApproval;
+  final String? contractExceedStatus;
+
+  /// 이번 달 신청한 최대 시간, 계약 상한을 그 달 시간으로 바꾼 값
+  final int? requestedMaxMonthlyHours;
+  final int? contractMaxMonthlyHours;
 
   factory PreferenceSubmissionRow.fromJson(Map<String, dynamic> j) => PreferenceSubmissionRow(
         employeeId: j['employeeId'] as int,
@@ -205,6 +220,9 @@ class PreferenceSubmissionRow {
         submitted: j['submitted'] as bool? ?? false,
         late: j['late'] as bool? ?? false,
         needsContractApproval: j['needsContractApproval'] as bool? ?? false,
+        contractExceedStatus: j['contractExceedStatus'] as String?,
+        requestedMaxMonthlyHours: (j['requestedMaxMonthlyHours'] as num?)?.toInt(),
+        contractMaxMonthlyHours: (j['contractMaxMonthlyHours'] as num?)?.toInt(),
       );
 }
 
