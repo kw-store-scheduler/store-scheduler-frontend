@@ -67,7 +67,7 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
         _shifts = shifts.length;
         _windows = windows.length;
         _exceptions = exceptions.length;
-        _todo = home.pendingApprovals + home.pendingLeaves;
+        _todo = home.pendingApprovals + home.pendingLeaves + home.pendingContractApprovals; // M01 에서 처리하는 것 (P01 과 같게)
         _openShifts = open.length;
       });
       _industries = await api.industries();
@@ -113,6 +113,48 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
     }
   }
 
+  /// 업종 바꾸기 (PATCH /api/stores/{id} industry). 역량·교대는 그대로 둔다
+  Future<void> _editIndustry() async {
+    final s = _store!;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ThymeColor.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text("업종", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Text("바꿔도 이미 만든 역량·교대는 그대로예요. 필요하면 각 설정에서 고쳐 주세요.",
+                  style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+            ),
+            for (final i in _industries)
+              ListTile(
+                title: Text(i.label),
+                trailing: i.code == s.industry ? const Icon(Icons.check, color: ThymeColor.primary) : null,
+                onTap: () => Navigator.pop(context, i.code),
+              ),
+          ]),
+        ),
+      ),
+    );
+    if (picked == null || picked == s.industry || !mounted) return;
+    try {
+      await StoreApi().updateInfo(name: s.name, address: s.address, industry: picked);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("업종을 바꿨어요")));
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   Future<void> _storeInfo() async {
     final s = _store!;
     await showModalBottomSheet(
@@ -135,7 +177,19 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
                 _editInfo();
               },
             ),
-            ListTile(title: const Text("업종"), trailing: Text(_industryLabel, style: const TextStyle(fontWeight: FontWeight.bold))),
+            ListTile(
+              title: const Text("업종"),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(_industryLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
+                const Icon(Icons.chevron_right),
+              ]),
+              onTap: _industries.isEmpty
+                  ? null
+                  : () {
+                      Navigator.pop(context);
+                      _editIndustry();
+                    },
+            ),
             ListTile(
               title: const Text("근무표 주기"),
               subtitle: const Text("눌러서 바꾸기"),
@@ -147,10 +201,6 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
                 Navigator.pop(context);
                 _open(const ScheduleCyclePage(editing: true));
               },
-            ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Text("업종은 바꿀 수 없어요. 업종에 맞춰 만든 역량·교대는 각 설정에서 고쳐 주세요.", style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
             ),
           ]),
         ),
@@ -224,7 +274,7 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
                         ]),
                         _group("사람", [
                           _row("근무자 목록 · 직원/알바", onTap: () => _open(const WorkerListPage())),
-                          _row("가입 · 연차 승인", badge: _todo, onTap: () => _open(const WorkerApprovalPage())),
+                          _row("가입 · 연차 · 계약 초과 승인", badge: _todo, onTap: () => _open(const WorkerApprovalPage())),
                           _row("빈 근무 게시판", badge: _openShifts, onTap: () => _open(const OpenShiftPostPage())),
                           _row("공지 · 업무", onTap: () => _open(const NoticeTaskManagePage())),
                           _row("출퇴근 기록", onTap: () => _open(const OwnerAttendancePage())),

@@ -414,6 +414,38 @@ void main() {
     expect(server.sent('GET', '/api/users/me'), isNotEmpty); // 매장 이름을 쓰는 곳도 새로
   });
 
+  testWidgets('P08 업종 바꾸기: 고르면 PATCH /api/stores/{id} 에 industry 를 같이', (tester) async {
+    _ownerBasics(server);
+    var store = <String, Object?>{'id': 7, 'name': '구시대 커피', 'address': '서울 노원구', 'storeCode': 'ABCD1234', 'industry': 'CAFE'};
+    server.routes['GET /api/stores'] = (_) => [store];
+    server.routes['GET $_store/shifts'] = (_) => [];
+    server.routes['GET $_store/skill-windows'] = (_) => [];
+    server.routes['GET $_store/staffing-exceptions'] = (_) => [];
+    server.routes['GET $_store/open-shifts'] = (_) => {'items': []};
+    server.routes['GET /api/stores/industries'] = (_) => [
+          {'code': 'CAFE', 'label': '카페', 'skills': [], 'shifts': []},
+          {'code': 'RESTAURANT', 'label': '음식점', 'skills': [], 'shifts': []},
+        ];
+    server.routes['PATCH $_store'] = (o) {
+      store = {...store, ...(o.data as Map).cast<String, Object?>()};
+      return store;
+    };
+    await pumpScreen(tester, const StoreSettingsPage());
+    await settle(tester);
+    await tapText(tester, '매장 정보 · 업종 · 주기');
+    await tester.pumpAndSettle();
+    await tapText(tester, '업종');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('이미 만든 역량·교대는 그대로'), findsOneWidget);
+    await tapText(tester, '음식점');
+    expect(server.sent('PATCH', _store).single.$3, {'name': '구시대 커피', 'address': '서울 노원구', 'industry': 'RESTAURANT'});
+    await settle(tester); // 다시 불러오기 (요청 여러 개)
+    await tester.pumpAndSettle();
+    await tapText(tester, '매장 정보 · 업종 · 주기');
+    await tester.pumpAndSettle();
+    expect(find.text('음식점'), findsOneWidget);
+  });
+
   testWidgets('3순위: P07 에 퇴사 예정 표시와 퇴사한 사람 목록', (tester) async {
     server.routes['GET $_store/roster'] = (_) => {
           'pendingApprovals': 0,
