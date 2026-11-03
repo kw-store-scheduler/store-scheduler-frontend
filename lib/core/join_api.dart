@@ -51,6 +51,13 @@ class JoinApi {
     return (await _session.refreshMe()).memberships.last;
   }
 
+  /// J04: 승인 전 합류 신청 취소 (DELETE /api/stores/{storeId}/join). 바뀐 /me 를 돌려준다
+  Future<Me> cancel() async {
+    final pending = (await _session.refreshMe()).memberships.where((m) => m.status == 'PENDING').lastOrNull;
+    if (pending != null) await _api.delete('/api/stores/${pending.storeId}/join');
+    return _session.refreshMe();
+  }
+
   /// J04: 승인됐는지 다시 확인. 승인되면 세션의 현재 매장을 그 매장으로 둔다
   Future<Membership?> refresh() async {
     final me = await _session.refreshMe();

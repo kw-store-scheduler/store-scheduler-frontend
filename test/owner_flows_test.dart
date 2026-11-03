@@ -9,6 +9,8 @@ import 'package:thyme_frontend/core/session.dart';
 import 'package:thyme_frontend/screens/owner/m01_worker_approval_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_notice_task_page.dart';
+import 'package:thyme_frontend/screens/worker/j01_store_code_page.dart';
+import 'package:thyme_frontend/screens/worker/j04_approval_waiting_page.dart';
 import 'package:thyme_frontend/screens/worker/worker_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_schedule_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_staffing_suggestion_page.dart';
@@ -502,5 +504,24 @@ void main() {
     await tapText(tester, '근무 바꾸기 승인 2');
     await tester.pumpAndSettle();
     expect(find.byType(SubstituteManagePage), findsOneWidget);
+  });
+
+  testWidgets('J04 가입 신청 취소: 확인하면 DELETE /stores/{id}/join, 다른 매장이 없으면 J01 로', (tester) async {
+    var memberships = [
+      {'employeeId': 3, 'storeId': 5, 'storeName': '구시대 커피', 'status': 'PENDING', 'employmentType': 'PART_TIME'},
+    ];
+    server.routes['GET /api/users/me'] = (_) => {'id': 2, 'username': 'staff01', 'role': 'EMPLOYEE', 'ownedStores': [], 'memberships': memberships};
+    server.routes['DELETE /api/stores/5/join'] = (_) {
+      memberships = [];
+      return ('', 204);
+    };
+    await pumpScreen(tester, const ApprovalWaitingPage(fullTime: false, name: '유나', storeName: '구시대 커피'));
+    await settle(tester);
+    await tapText(tester, '가입 신청 취소');
+    expect(find.text('가입 신청을 취소할까요?'), findsOneWidget);
+    await tapText(tester, '신청 취소');
+    await tester.pumpAndSettle();
+    expect(server.sent('DELETE', '/api/stores/5/join'), hasLength(1));
+    expect(find.byType(StoreCodePage), findsOneWidget);
   });
 }

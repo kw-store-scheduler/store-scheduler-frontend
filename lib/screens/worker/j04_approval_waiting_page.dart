@@ -15,6 +15,7 @@ import 'w00_load_last_month_page.dart';
 /// J04 승인 대기 ↔ 승인 완료. 점주가 승인하면 첫 희망 제출로 (알바 → W00, 직원 → E01)
 ///
 /// 열 때와 '승인 확인'을 누를 때 GET /api/users/me 로 합류 상태(PENDING·APPROVED·REJECTED)를 다시 본다.
+/// 승인 전에는 신청을 취소할 수 있다 (매장을 잘못 골랐을 때) → 승인된 다른 매장이 있으면 그 홈, 없으면 J01
 class ApprovalWaitingPage extends StatefulWidget {
   const ApprovalWaitingPage({super.key, required this.fullTime, required this.name, required this.storeName, this.requestedAt});
 
@@ -60,6 +61,32 @@ class _ApprovalWaitingPageState extends State<ApprovalWaitingPage> {
       if (mounted && !quiet) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  Future<void> _cancel() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("가입 신청을 취소할까요?"),
+        content: Text("${widget.storeName} 사장님께 보낸 신청이 사라져요. 다른 매장 코드로 다시 신청할 수 있어요."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("아니요")),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("신청 취소")),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _checking = true);
+    try {
+      final me = await JoinApi().cancel();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("가입 신청을 취소했어요")));
+      me.memberships.any((m) => m.isApproved) ? goHome(context, me) : resetTo(context, const StoreCodePage());
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _checking = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -163,6 +190,13 @@ class _ApprovalWaitingPageState extends State<ApprovalWaitingPage> {
                   child: FilledButton(
                     onPressed: () => resetTo(context, const StoreCodePage()),
                     child: const Text("다른 매장 코드 넣기"),
+                  ),
+                )
+              else
+                Center(
+                  child: TextButton(
+                    onPressed: _checking ? null : _cancel,
+                    child: const Text("가입 신청 취소", style: TextStyle(color: ThymeColor.textSub)),
                   ),
                 ),
             ],
