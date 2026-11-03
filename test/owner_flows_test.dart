@@ -11,6 +11,7 @@ import 'package:thyme_frontend/screens/owner/owner_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_notice_task_page.dart';
 import 'package:thyme_frontend/screens/worker/j01_store_code_page.dart';
 import 'package:thyme_frontend/screens/worker/j04_approval_waiting_page.dart';
+import 'package:thyme_frontend/screens/worker/w11_fixed_schedule_page.dart';
 import 'package:thyme_frontend/screens/worker/worker_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_schedule_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_staffing_suggestion_page.dart';
@@ -555,5 +556,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(server.sent('DELETE', '/api/stores/5/join'), hasLength(1));
     expect(find.byType(StoreCodePage), findsOneWidget);
+  });
+
+  testWidgets('P11 고정 일정 대신 입력: W11 점주 모드가 GET·PUT /employees/{id}/fixed-schedules, 예외 기간은 숨김', (tester) async {
+    server.routes['GET $_store/employees/3/fixed-schedules'] = (_) => [
+          {'id': 1, 'dayOfWeek': 'MONDAY', 'startTime': '09:00:00', 'endTime': '12:00:00', 'label': '전공 수업', 'category': 'STUDY'},
+        ];
+    server.routes['PUT $_store/employees/3/fixed-schedules'] = (o) => o.data;
+    await pumpScreen(tester, const FixedSchedulePage(employeeId: 3, employeeName: '유나'));
+    await settle(tester);
+    expect(find.text('유나님 고정 일정'), findsOneWidget);
+    expect(find.text('전공 수업'), findsOneWidget);
+    expect(find.text('이번 달만 예외'), findsNothing);
+    await tester.tap(find.text('수'));
+    await tester.pump();
+    await tapText(tester, '저장');
+    expect(server.sent('GET', '$_store/unavailable-periods'), isEmpty);
+    expect(server.sent('PUT', '$_store/employees/3/fixed-schedules').single.$3, [
+      {'dayOfWeek': 'MONDAY', 'startTime': '09:00', 'endTime': '12:00', 'label': '전공 수업', 'category': 'STUDY'},
+      {'dayOfWeek': 'WEDNESDAY', 'startTime': '09:00', 'endTime': '12:00', 'label': '전공 수업', 'category': 'STUDY'},
+    ]);
   });
 }

@@ -1,5 +1,5 @@
 import '../models/owner.dart';
-import '../models/preference.dart' show toServerEnum;
+import '../models/preference.dart' show FixedSchedule, toServerEnum;
 import '../models/store.dart';
 import '../models/user.dart';
 import '../models/worker.dart' show Trade;
@@ -105,6 +105,14 @@ class OwnerApi {
 
   Future<EmployeeProfile> profile(int employeeId) async =>
       EmployeeProfile.fromJson(await _api.get('$_store/employees/$employeeId/profile') as Map<String, dynamic>);
+
+  /// 직원의 고정 일정 (W11 에서 직원이 낸 것, P11)
+  Future<List<FixedSchedule>> fixedSchedules(int employeeId) async =>
+      [for (final j in await _api.get('$_store/employees/$employeeId/fixed-schedules') as List) FixedSchedule.fromJson(j as Map<String, dynamic>)];
+
+  /// 직원 대신 고정 일정 입력 (통째로 교체, 빈 목록이면 모두 삭제)
+  Future<void> replaceFixedSchedules(int employeeId, List<FixedSchedule> list) =>
+      _api.put('$_store/employees/$employeeId/fixed-schedules', data: [for (final f in list) f.toJson()]);
 
   /// 보낸 항목만 바뀐다. 바뀐 내용은 이력에 남고 직원에게 알림이 간다
   Future<EmployeeProfile> updateProfile(
