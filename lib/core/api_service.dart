@@ -4,10 +4,13 @@ import 'package:flutter/foundation.dart';
 /// 서버 에러를 화면에서 그대로 보여줄 수 있게 정리한 예외.
 /// 백엔드(GlobalExceptionHandler)는 에러를 항상 `{"message": "..."}`로 내려준다.
 class ApiException implements Exception {
-  ApiException(this.message, {this.statusCode});
+  ApiException(this.message, {this.statusCode, this.forceable = false});
 
   final String message;
   final int? statusCode;
+
+  /// 근무 추가·고치기에서 점주가 force 로 진행할 수 있는 규칙 위반 (400 본문 `forceable: true`)
+  final bool forceable;
 
   bool get isUnauthorized => statusCode == 401;
 
@@ -102,13 +105,18 @@ class ApiService {
             return (await request()).data;
           } on DioException catch (e2) {
             if (e2.response?.statusCode == 401) onUnauthorized?.call();
-            throw ApiException(_messageOf(e2), statusCode: e2.response?.statusCode);
+            throw _exceptionOf(e2);
           }
         }
         onUnauthorized?.call();
       }
-      throw ApiException(_messageOf(e), statusCode: status);
+      throw _exceptionOf(e);
     }
+  }
+
+  static ApiException _exceptionOf(DioException e) {
+    final body = e.response?.data;
+    return ApiException(_messageOf(e), statusCode: e.response?.statusCode, forceable: body is Map && body['forceable'] == true);
   }
 
   /// 리프레시 토큰으로 새 토큰 쌍을 받는다. 동시에 불려도 서버에는 한 번만 보낸다.

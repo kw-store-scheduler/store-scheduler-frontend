@@ -50,13 +50,14 @@ class _OwnerSchedulePageState extends State<OwnerSchedulePage> {
     }
   }
 
-  /// 추가·고치기 공통: 먼저 규칙대로 보내고, 400(규칙 위반 등)이면 사유를 보여 준 뒤 원하면 force 로 다시
+  /// 추가·고치기 공통: 먼저 규칙대로 보내고, 서버가 force 로 넘길 수 있다고 한 규칙 위반(forceable)이면 사유를 보여 준 뒤 원하면 force 로 다시.
+  /// 그 밖의 400(시간 잘못, 퇴사, 진행 중인 대타 등)은 force 로도 안 되니 사유만 보여 준다
   Future<void> _save(Future<void> Function(bool force) send, String done) async {
     try {
       await send(false);
     } on ApiException catch (e) {
       if (!mounted) return;
-      if (e.statusCode != 400) {
+      if (!e.forceable) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
         return;
       }

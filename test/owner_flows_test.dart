@@ -222,12 +222,12 @@ void main() {
       server.routes['GET $_store/shifts'] = (_) => [{'id': 11, 'name': '오픈', 'startTime': '09:00:00', 'endTime': '14:00:00'}];
     }
 
-    testWidgets('규칙에 걸리면(400) 사유를 보여 주고, 그래도 배정하면 force: true 로 다시 보낸다', (tester) async {
+    testWidgets('규칙에 걸리면(400 forceable) 사유를 보여 주고, 그래도 배정하면 force: true 로 다시 보낸다', (tester) async {
       final entries = <Map<String, Object?>>[];
       routes(entries);
       server.routes['POST $_store/schedules'] = (o) {
         final b = o.data as Map;
-        if (b['force'] != true) return ({'message': '유나님은 이날 휴무를 신청했습니다.'}, 400);
+        if (b['force'] != true) return ({'message': '유나님은 이날 휴무를 신청했습니다.', 'forceable': true}, 400);
         final e = {'id': 9, 'employeeId': 3, 'employeeName': '유나', 'workDate': b['workDate'], 'startTime': '09:00:00', 'endTime': '14:00:00'};
         entries.add(e);
         return e;
@@ -249,6 +249,24 @@ void main() {
       expect(posts.map((p) => (p.$3 as Map)['force']), [false, true]);
       expect(posts.last.$3, {'employeeId': 3, 'workDate': ymd(monday), 'startTime': '09:00', 'endTime': '14:00', 'force': true});
       expect(find.text('유나 09–14'), findsOneWidget);
+    });
+
+    testWidgets('force 로 넘길 수 없는 400(forceable 없음)은 사유만 보여 주고 다시 보내지 않는다', (tester) async {
+      routes([]);
+      server.routes['POST $_store/schedules'] = (_) => ({'message': '퇴근 시각은 출근 시각보다 늦어야 합니다.'}, 400);
+      await pumpScreen(tester, const OwnerSchedulePage());
+      await settle(tester);
+      await tester.tap(find.byTooltip('${monday.month}/${monday.day} 근무 추가'));
+      await settle(tester);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('유나'));
+      await tester.tap(find.text('오픈 09–14'));
+      await tester.pump();
+      await tapText(tester, '넣기');
+      await tester.pump();
+      expect(find.text('근무 규칙에 걸려요'), findsNothing);
+      expect(find.text('퇴근 시각은 출근 시각보다 늦어야 합니다.'), findsOneWidget);
+      expect(server.sent('POST', '$_store/schedules'), hasLength(1));
     });
 
     testWidgets('근무를 눌러 담당자를 바꾸면 PUT, 지우기는 DELETE', (tester) async {
