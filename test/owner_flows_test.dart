@@ -12,6 +12,7 @@ import 'package:thyme_frontend/screens/owner/owner_notice_task_page.dart';
 import 'package:thyme_frontend/screens/worker/worker_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_schedule_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_staffing_suggestion_page.dart';
+import 'package:thyme_frontend/screens/owner/p01_owner_home_page.dart';
 import 'package:thyme_frontend/screens/owner/p06_substitute_manage_page.dart';
 import 'package:thyme_frontend/screens/owner/p07_worker_list_page.dart';
 import 'package:thyme_frontend/screens/owner/p08_store_settings_page.dart';
@@ -447,5 +448,24 @@ void main() {
       expect(server.sent('POST', '$_store/preferences/3/contract-exceed?month=2026-11&approved=true'), hasLength(1));
       expect(find.text('11월 계약보다 많이 일하기 1'), findsNothing);
     });
+  });
+
+  testWidgets('P01: 승인할 것에 계약 초과 수가 더해지고, 근무 바꾸기 승인 대기는 P06 으로 가는 줄', (tester) async {
+    _ownerBasics(server);
+    final home = server.routes['GET $_store/home/owner']!;
+    server.routes['GET $_store/home/owner'] = (o) => {
+          ...home(o) as Map<String, Object?>,
+          'pendingApprovals': 1, 'pendingLeaves': 0, 'pendingTrades': 2, 'pendingContractApprovals': 1,
+        };
+    server.routes['GET $_store/closing-reports'] = (_) => [];
+    server.routes['GET /api/users/me/notifications'] = (_) => {'unreadCount': 0, 'notifications': []};
+    server.routes['GET $_store/swap-requests'] = (_) => [];
+    server.routes['GET $_store/trades'] = (_) => [];
+    await pumpScreen(tester, const OwnerHomePage());
+    await settle(tester);
+    expect(find.text('승인할 것 2 · 가입 1 · 계약 초과 1'), findsOneWidget);
+    await tapText(tester, '근무 바꾸기 승인 2');
+    await tester.pumpAndSettle();
+    expect(find.byType(SubstituteManagePage), findsOneWidget);
   });
 }

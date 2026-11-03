@@ -194,7 +194,13 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
 
   Widget _todoCard(OwnerHome h) {
     final p = h.preferences;
-    final todo = h.pendingApprovals + h.pendingLeaves;
+    // M01 에서 처리하는 것: 가입·연차·계약 초과
+    final todo = h.pendingApprovals + h.pendingLeaves + h.pendingContractApprovals;
+    final parts = [
+      if (h.pendingApprovals > 0) "가입 ${h.pendingApprovals}",
+      if (h.pendingLeaves > 0) "연차 ${h.pendingLeaves}",
+      if (h.pendingContractApprovals > 0) "계약 초과 ${h.pendingContractApprovals}",
+    ];
     final ratio = p.employeeCount == 0 ? 0.0 : p.submittedCount / p.employeeCount;
     final dday = p.daysUntilDeadline > 0 ? "D-${p.daysUntilDeadline}" : (p.daysUntilDeadline == 0 ? "오늘 마감" : "마감 지남");
     return _card(Column(children: [
@@ -207,7 +213,7 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                todo > 0 ? "승인할 것 $todo · 가입 ${h.pendingApprovals} · 연차 ${h.pendingLeaves}" : "승인할 것이 없어요",
+                todo > 0 ? "승인할 것 $todo · ${parts.join(' · ')}" : "승인할 것이 없어요",
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text),
               ),
             ),
@@ -215,6 +221,24 @@ class _OwnerHomePageState extends State<OwnerHomePage> {
           ]),
         ),
       ),
+      if (h.pendingTrades > 0) ...[
+        const Divider(height: 1),
+        InkWell(
+          onTap: () => _open(const SubstituteManagePage()),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Row(children: [
+              const Icon(Icons.circle, size: 10, color: ThymeColor.warn),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text("근무 바꾸기 승인 ${h.pendingTrades}",
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+              ),
+              const Icon(Icons.arrow_forward, size: 18, color: ThymeColor.textSub),
+            ]),
+          ),
+        ),
+      ],
       const Divider(height: 1),
       Padding(
         padding: const EdgeInsets.symmetric(vertical: 16),

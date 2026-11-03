@@ -235,6 +235,8 @@ class OwnerHome {
     required this.employeeCount,
     required this.pendingApprovals,
     required this.pendingLeaves,
+    this.pendingTrades = 0,
+    this.pendingContractApprovals = 0,
     required this.vacancies,
     required this.todayShifts,
     required this.preferences,
@@ -246,6 +248,12 @@ class OwnerHome {
   final int employeeCount;
   final int pendingApprovals;
   final int pendingLeaves;
+
+  /// 동료가 수락해서 사장님 승인만 남은 근무 바꾸기 (P06)
+  final int pendingTrades;
+
+  /// 계약 상한을 넘겨 신청해 결정 전인 희망 (M01, pendingApprovals 에는 안 들어 있다)
+  final int pendingContractApprovals;
   final List<Vacancy> vacancies;
   final List<ShiftStatus> todayShifts;
   final PreferenceStatus preferences;
@@ -260,6 +268,8 @@ class OwnerHome {
         employeeCount: (j['employeeCount'] as num).toInt(),
         pendingApprovals: (j['pendingApprovals'] as num).toInt(),
         pendingLeaves: (j['pendingLeaves'] as num?)?.toInt() ?? 0,
+        pendingTrades: (j['pendingTrades'] as num?)?.toInt() ?? 0,
+        pendingContractApprovals: (j['pendingContractApprovals'] as num?)?.toInt() ?? 0,
         vacancies: [for (final v in j['activeVacancies'] as List? ?? []) Vacancy.fromJson(v as Map<String, dynamic>)],
         todayShifts: [for (final s in j['todayShifts'] as List? ?? []) ShiftStatus.fromJson(s as Map<String, dynamic>)],
         preferences: PreferenceStatus.fromJson(j['nextMonthPreferences'] as Map<String, dynamic>),
