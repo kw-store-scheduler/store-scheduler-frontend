@@ -164,6 +164,18 @@ class OwnerApi {
   Future<List<AttendanceRecord>> attendance(DateTime date) async =>
       _list(await _api.get('$_store/attendance', query: {'date': dateParam(date)}), AttendanceRecord.fromJson);
 
+  /// 근무 시작이 지났는데 출근 기록이 없는 사람 (결근·출근 안 찍음)
+  Future<List<AttendanceAbsence>> absences(DateTime date) async =>
+      _list(await _api.get('$_store/attendance/absences', query: {'date': dateParam(date)}), AttendanceAbsence.fromJson);
+
+  /// 출근을 아예 안 찍은 날의 기록 만들기 (앞으로의 시각·이미 기록 있는 날은 서버가 400)
+  Future<AttendanceRecord> createAttendance(int employeeId, {required DateTime clockIn, DateTime? clockOut}) async =>
+      AttendanceRecord.fromJson(await _api.post('$_store/attendance', data: {
+        'employeeId': employeeId,
+        'clockIn': _localDateTime(clockIn),
+        'clockOut': clockOut == null ? null : _localDateTime(clockOut),
+      }) as Map<String, dynamic>);
+
   /// 퇴근 누락·잘못 찍은 기록 고치기 (출근 시각은 꼭, 퇴근은 비워 둘 수 있다)
   Future<AttendanceRecord> correctAttendance(int id, {required DateTime clockIn, DateTime? clockOut}) async =>
       AttendanceRecord.fromJson(await _api.patch('$_store/attendance/$id', data: {

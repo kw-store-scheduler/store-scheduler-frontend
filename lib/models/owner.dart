@@ -106,6 +106,24 @@ class PreferenceStatus {
       );
 }
 
+/// 근무 시작 시각이 지났는데 그날 출근 기록이 없는 사람 (GET /attendance/absences?date=, 점주)
+/// 하루에 근무가 여럿이면 가장 이른 근무
+class AttendanceAbsence {
+  const AttendanceAbsence({required this.employeeId, required this.employeeName, required this.scheduledStart, required this.scheduledEnd});
+
+  final int employeeId;
+  final String employeeName;
+  final String scheduledStart;
+  final String scheduledEnd;
+
+  factory AttendanceAbsence.fromJson(Map<String, dynamic> j) => AttendanceAbsence(
+        employeeId: j['employeeId'] as int,
+        employeeName: j['employeeName'] as String? ?? '',
+        scheduledStart: j['scheduledStart'] as String,
+        scheduledEnd: j['scheduledEnd'] as String,
+      );
+}
+
 /// 출퇴근 기록 한 건 (GET /attendance?date= 점주, GET /attendance/my 근로자)
 /// scheduledStart·End 는 그날 근무표 시간(근무 없이 찍었으면 null), late = 근무 시작보다 늦게 출근
 class AttendanceRecord {

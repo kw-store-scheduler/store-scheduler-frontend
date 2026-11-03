@@ -313,6 +313,7 @@ void main() {
     testWidgets('점주: 퇴근 누락을 보여 주고, 고치면 근무표 끝 시각으로 PATCH', (tester) async {
       var r = record();
       server.routes['GET $_store/attendance'] = (_) => [r];
+      server.routes['GET $_store/attendance/absences'] = (_) => [];
       server.routes['PATCH $_store/attendance/21'] = (o) {
         r = record(clockOut: (o.data as Map)['clockOut'] as String);
         return r;
@@ -330,6 +331,40 @@ void main() {
       expect(server.sent('PATCH', '$_store/attendance/21').single.$3,
           {'clockIn': '${ymd(yesterday)}T17:05:00', 'clockOut': '${ymd(yesterday)}T22:00:00'});
       expect(find.text('17:05 – 22:00'), findsOneWidget);
+    });
+
+    testWidgets('점주: 출근 기록이 없는 사람을 보여 주고, 누르면 근무표 시간으로 POST /attendance', (tester) async {
+      final records = <Map<String, Object?>>[];
+      var absences = [
+        {'employeeId': 4, 'employeeName': '하준', 'scheduledStart': '09:00:00', 'scheduledEnd': '14:00:00'},
+      ];
+      server.routes['GET $_store/attendance'] = (_) => records;
+      server.routes['GET $_store/attendance/absences'] = (_) => absences;
+      server.routes['POST $_store/attendance'] = (o) {
+        final b = o.data as Map;
+        final r = {
+          'id': 30, 'employeeId': 4, 'employeeName': '하준', 'workDate': ymd(yesterday),
+          'clockIn': b['clockIn'], 'clockOut': b['clockOut'], 'scheduledStart': '09:00:00', 'scheduledEnd': '14:00:00', 'late': false,
+        };
+        records.add(r);
+        absences = [];
+        return r;
+      };
+      await pumpScreen(tester, const OwnerAttendancePage());
+      await settle(tester);
+      await tester.tap(find.byTooltip('전날'));
+      await settle(tester);
+      expect(server.sent('GET', '$_store/attendance/absences?date=${ymd(yesterday)}'), hasLength(1));
+      expect(find.text('출근 기록 없음 1'), findsOneWidget);
+      await tapText(tester, '하준');
+      expect(find.textContaining('기록 만들기'), findsWidgets); // 시트 제목
+      expect(find.text('출근 09:00'), findsOneWidget);
+      expect(find.text('퇴근 14:00'), findsOneWidget);
+      await tapText(tester, '저장');
+      expect(server.sent('POST', '$_store/attendance').single.$3,
+          {'employeeId': 4, 'clockIn': '${ymd(yesterday)}T09:00:00', 'clockOut': '${ymd(yesterday)}T14:00:00'});
+      expect(find.text('출근 기록 없음 1'), findsNothing);
+      expect(find.text('09:00 – 14:00'), findsOneWidget);
     });
 
     testWidgets('근로자: 이달 내 기록을 보기만 한다 (GET /attendance/my?from&to)', (tester) async {
