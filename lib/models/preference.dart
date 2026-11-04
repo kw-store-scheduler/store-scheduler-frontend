@@ -128,6 +128,9 @@ class PreferenceDraft {
   /// 지난달 답을 실제로 불러왔는지 (첫 달이면 불러올 답이 없다)
   bool loadedPrevious = false;
 
+  /// 그달에 이미 낸 값을 불러와 고치는 중인지 ('고치기')
+  bool loadedMine = false;
+
   /// W02: (날짜, 교대 id) → 가능/선호. 없는 칸은 불가
   final Map<(DateTime, int), PreferenceLevel> slots = {};
 

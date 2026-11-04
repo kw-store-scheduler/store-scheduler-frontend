@@ -127,8 +127,8 @@ class _EmployeeLeavePageState extends State<EmployeeLeavePage> {
         final i = _items.indexOf(item);
         _items[i] = _Item(serverId: saved.id, date: saved.date, reason: saved.reason ?? '', order: List.of(saved.fallbacks));
       }
-      // 직원은 지난달 교대 선호를 그대로 불러와 시작한다
-      final PreferenceDraft draft = await PreferenceApi().startDraft(_month, fromLastMonth: true, fullTime: true);
+      // 이미 냈으면 그 값을 고치고, 아니면 지난달 교대 선호를 그대로 불러와 시작한다
+      final PreferenceDraft draft = await PreferenceApi().startDraft(_month, fromLastMonth: true, mine: true, fullTime: true);
       if (!mounted) return;
       Navigator.push(context, MaterialPageRoute(builder: (_) => ShiftAttitudePage(draft: draft)));
     } on ApiException catch (e) {
