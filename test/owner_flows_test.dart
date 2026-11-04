@@ -8,6 +8,7 @@ import 'package:thyme_frontend/core/api_service.dart';
 import 'package:thyme_frontend/core/session.dart';
 import 'package:thyme_frontend/models/owner.dart' show SwapRequestInfo;
 import 'package:thyme_frontend/screens/owner/m01_worker_approval_page.dart';
+import 'package:thyme_frontend/screens/owner/o04_curation_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_notice_task_page.dart';
 import 'package:thyme_frontend/screens/worker/h12_absence_report_page.dart';
@@ -647,5 +648,42 @@ void main() {
     await tapText(tester, '근무 바꾸기');
     await tester.pumpAndSettle();
     expect(tester.widget<ShiftSwapPage>(find.byType(ShiftSwapPage)).scheduleId, 31);
+  });
+
+  testWidgets('O04 매장 역량 추가(POST /skills)·삭제(DELETE, 쓰는 시간대 조건 수를 알림)', (tester) async {
+    var skills = [
+      {'id': 1, 'name': '고객 응대'},
+      {'id': 2, 'name': '정산'},
+    ];
+    server.routes['GET $_store/skills'] = (_) => skills;
+    server.routes['GET $_store/skill-windows'] = (_) => [
+          {'id': 9, 'label': '마감', 'startTime': '20:00:00', 'endTime': '22:00:00', 'skillId': 2, 'skillName': '정산',
+            'minLevel': 'HIGH', 'requiredCount': 1, 'mandatory': true, 'days': []},
+        ];
+    server.routes['GET $_store/skill-matrix'] = (_) => [];
+    server.routes['POST $_store/skills'] = (o) {
+      final added = {'id': 3, 'name': (o.data as Map)['name'] as String};
+      skills = [...skills, added];
+      return added;
+    };
+    server.routes['DELETE $_store/skills/2'] = (_) {
+      skills = [skills.first, skills.last];
+      return null;
+    };
+    await pumpScreen(tester, const CurationPage(editing: true));
+    await settle(tester);
+    await tapText(tester, '+ 역량 추가');
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '일본어');
+    await tapText(tester, '추가');
+    expect(server.sent('POST', '$_store/skills').single.$3, {'name': '일본어'});
+    expect(find.text('일본어'), findsOneWidget);
+
+    await tapText(tester, '정산');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('시간대 조건 1개도 같이 지워져요'), findsOneWidget);
+    await tapText(tester, '역량 삭제');
+    expect(server.sent('DELETE', '$_store/skills/2'), hasLength(1));
+    expect(tester.takeException(), isNull);
   });
 }

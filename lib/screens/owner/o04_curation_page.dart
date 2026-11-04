@@ -6,11 +6,13 @@ import '../../core/theme.dart';
 import '../../models/store.dart';
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_step_app_bar.dart';
+import '../../widgets/thyme_text_controller_scope.dart';
 import 'o05_labor_law_page.dart';
 
 /// O04 리테일 큐레이션 (매장 등록 5/6, 선택). 그 시간에 꼭 있어야 하는 능력을 정한다
 ///
-/// Q1 직원 × 역량 등급 = GET /skill-matrix (합류 전이면 비어 있음)
+/// Q1 직원 × 역량 등급 = GET /skill-matrix (합류 전이면 비어 있음). 매장 역량 추가·삭제 = POST·DELETE /skills
+///    (업종 기본 역량에 없는 것, 예: 의류 매장의 일본어. 역량 이름을 누르면 삭제)
 /// Q2 시간대별 필요 역량 = GET·POST·DELETE /skill-windows → M03 역량 매칭과 근무표 엔진의 필수/우선 조건
 /// Q3 입객 데이터 = 마감 보고 객수 → 다음 달 인원 제안 (설정할 것이 없어 안내만)
 class CurationPage extends StatefulWidget {
@@ -108,6 +110,91 @@ class _CurationPageState extends State<CurationPage> {
     }
   }
 
+  /// 업종 기본에 없는 역량 추가 (언어·포지션 등)
+  Future<void> _addSkill() async {
+    final name = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ThymeColor.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => ThymeTextControllerScope(
+        builder: (context, c) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 16 + MediaQuery.viewInsetsOf(context).bottom),
+          child: SafeArea(
+            top: false,
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              const Text("역량 추가", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              const Text("직원이 신청하고 사장님이 상·중·하로 확정해요. 시간대별 필요 역량(Q2)에도 쓸 수 있어요.",
+                  style: TextStyle(fontSize: 13, color: ThymeColor.textSub, height: 1.5)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: c,
+                autofocus: true,
+                maxLength: 20,
+                decoration: const InputDecoration(labelText: "역량 이름", hintText: "예: 일본어, 바리스타"),
+                onSubmitted: (v) => Navigator.pop(context, v.trim()),
+              ),
+              const SizedBox(height: 8),
+              FilledButton(onPressed: () => Navigator.pop(context, c.text.trim()), child: const Text("추가")),
+            ]),
+          ),
+        ),
+      ),
+    );
+    if (name == null || name.isEmpty || !mounted) return;
+    try {
+      await StoreApi().addSkill(name);
+      if (mounted) _toast("'$name' 역량을 추가했어요");
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) _toast(e.message);
+    }
+  }
+
+  /// 역량 삭제. 그 역량을 쓰는 시간대 조건과 직원 등급도 함께 지워진다고 알린다
+  Future<void> _removeSkill(SkillInfo s) async {
+    final windows = _windows.where((w) => w.skillId == s.id).length;
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: ThymeColor.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text("'${s.name}' 역량을 지울까요?", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+            const SizedBox(height: 6),
+            Text(
+                [
+                  "직원들에게 확정한 등급도 함께 지워져요.",
+                  if (windows > 0) "이 역량을 쓰는 시간대 조건 $windows개도 같이 지워져요.",
+                ].join(" "),
+                style: const TextStyle(fontSize: 15, color: ThymeColor.textSub, height: 1.5)),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: ThymeColor.danger),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text("역량 삭제"),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(width: double.infinity, child: TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("닫기"))),
+          ]),
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await StoreApi().deleteSkill(s.id);
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) _toast(e.message);
+    }
+  }
+
   // 조건은 추가·삭제할 때마다 바로 저장된다
   void _next() => widget.editing ? Navigator.pop(context) : Navigator.push(context, MaterialPageRoute(builder: (_) => const LaborLawPage()));
 
@@ -188,13 +275,26 @@ class _CurationPageState extends State<CurationPage> {
         ]),
       );
 
-  /// Q1 직원 × 역량. 아직 직원이 없으면 업종 역량 목록과 안내
+  /// '+ 역량 추가' (Q1 아래)
+  Widget _addSkillButton() => InkWell(
+        onTap: _addSkill,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Text("+ 역량 추가", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+        ),
+      );
+
+  /// Q1 직원 × 역량. 아직 직원이 없으면 업종 역량 목록과 안내. 역량 이름을 누르면 삭제
   Widget _q1(List<SkillInfo> skills) {
     if (_matrix.isEmpty) {
       return _card("Q1", "누가 무엇을 할 수 있나", [
-        Wrap(spacing: 8, runSpacing: 8, children: [for (final s in skills) _chip(s.name, strong: false)]),
-        const SizedBox(height: 12),
-        const Text("직원이 합류해 역량을 신청하면, 근무자 프로필에서 상·중·하를 확정해요. 그러면 여기에 표로 보여요.",
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final s in skills) InkWell(borderRadius: BorderRadius.circular(99), onTap: () => _removeSkill(s), child: _chip(s.name, strong: false)),
+        ]),
+        const SizedBox(height: 4),
+        _addSkillButton(),
+        const SizedBox(height: 4),
+        const Text("업종에 맞춰 준비한 역량이에요. 언어처럼 더 필요한 건 추가하고, 이름을 누르면 지워요. 직원이 합류해 역량을 신청하면 근무자 프로필에서 상·중·하를 확정하고, 여기에 표로 보여요.",
             style: TextStyle(fontSize: 13, color: ThymeColor.textSub, height: 1.5)),
       ]);
     }
@@ -205,7 +305,13 @@ class _CurationPageState extends State<CurationPage> {
           Row(children: [
             const SizedBox(width: 88),
             for (final s in skills)
-              SizedBox(width: 76, child: Center(child: Text(s.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: ThymeColor.textSub)))),
+              SizedBox(
+                width: 76,
+                child: InkWell(
+                  onTap: () => _removeSkill(s),
+                  child: Center(child: Text(s.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: ThymeColor.textSub))),
+                ),
+              ),
           ]),
           const SizedBox(height: 6),
           for (final r in _matrix)
@@ -224,6 +330,8 @@ class _CurationPageState extends State<CurationPage> {
             ),
         ]),
       ),
+      const SizedBox(height: 8),
+      _addSkillButton(),
     ]);
   }
 

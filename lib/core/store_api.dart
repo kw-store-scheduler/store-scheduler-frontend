@@ -115,6 +115,13 @@ class StoreApi {
   Future<List<SkillInfo>> skills() async =>
       [for (final j in await _api.get('$_store/skills') as List) SkillInfo.fromJson(j as Map<String, dynamic>)];
 
+  /// O04: 매장 역량 추가 (업종 기본에 없는 것. 예: 일본어). 같은 이름이면 서버가 400
+  Future<SkillInfo> addSkill(String name) async =>
+      SkillInfo.fromJson(await _api.post('$_store/skills', data: {'name': name}) as Map<String, dynamic>);
+
+  /// O04: 매장 역량 삭제. 이 역량을 쓰는 시간대 조건·교대 조건·직원 등급도 서버가 같이 지운다
+  Future<void> deleteSkill(int id) => _api.delete('$_store/skills/$id');
+
   /// O04: 시간대별 필요 역량
   Future<List<SkillWindow>> skillWindows() async =>
       [for (final j in await _api.get('$_store/skill-windows') as List) SkillWindow.fromJson(j as Map<String, dynamic>)];
