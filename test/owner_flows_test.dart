@@ -10,9 +10,12 @@ import 'package:thyme_frontend/models/owner.dart' show SwapRequestInfo;
 import 'package:thyme_frontend/screens/owner/m01_worker_approval_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_notice_task_page.dart';
+import 'package:thyme_frontend/screens/worker/h12_absence_report_page.dart';
 import 'package:thyme_frontend/screens/worker/h13_fill_vacancy_page.dart';
 import 'package:thyme_frontend/screens/worker/j01_store_code_page.dart';
 import 'package:thyme_frontend/screens/worker/j04_approval_waiting_page.dart';
+import 'package:thyme_frontend/screens/worker/w07_my_schedule_page.dart';
+import 'package:thyme_frontend/screens/worker/w09_shift_swap_page.dart';
 import 'package:thyme_frontend/screens/worker/w11_fixed_schedule_page.dart';
 import 'package:thyme_frontend/screens/worker/worker_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_schedule_page.dart';
@@ -612,5 +615,37 @@ void main() {
     expect(find.text('하준님이 수락했어요. 사장님이 승인하면 확정돼요'), findsOneWidget);
     expect(find.text('수락 · 승인 대기'), findsOneWidget);
     expect(find.text('마감'), findsOneWidget);
+  });
+
+  testWidgets('W07 시작 전 근무를 누르면 그 근무로 결원 신고(H12)·근무 바꾸기(W09)를 연다', (tester) async {
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final ymd = '${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}';
+    server.routes['GET $_store/schedules/my'] = (_) => [
+          {'id': 31, 'workDate': ymd, 'startTime': '17:00:00', 'endTime': '22:00:00', 'reasons': ['마감 가능']},
+        ];
+    server.routes['GET $_store/shifts'] = (_) => [];
+    await pumpScreen(tester, const MySchedulePage());
+    await settle(tester);
+    if (tomorrow.month != now.month) {
+      await tester.tap(find.byIcon(Icons.chevron_right));
+      await tester.pump();
+    }
+    expect(find.text('못 나가요'), findsNothing); // 날짜를 고르기 전
+    await tester.tap(find.text('17–22'));
+    await tester.pump();
+    expect(find.text('· 마감 가능'), findsOneWidget);
+    await tapText(tester, '못 나가요');
+    await tester.pumpAndSettle();
+    expect(find.byType(AbsenceReportPage), findsOneWidget);
+    expect(tester.widget<AbsenceReportPage>(find.byType(AbsenceReportPage)).shift?.scheduleId, 31);
+    tester.state<NavigatorState>(find.byType(Navigator)).pop();
+    await tester.pumpAndSettle();
+    await settle(tester);
+    await tester.tap(find.text('17–22'));
+    await tester.pump();
+    await tapText(tester, '근무 바꾸기');
+    await tester.pumpAndSettle();
+    expect(tester.widget<ShiftSwapPage>(find.byType(ShiftSwapPage)).scheduleId, 31);
   });
 }
