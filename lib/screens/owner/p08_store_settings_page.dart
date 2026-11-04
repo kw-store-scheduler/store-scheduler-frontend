@@ -275,7 +275,7 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
                         ]),
                         _group("사람", [
                           _row("근무자 목록 · 직원/알바", onTap: () => _open(const WorkerListPage())),
-                          _row("가입 · 연차 · 계약 초과 승인", badge: _todo, onTap: () => _open(const WorkerApprovalPage())),
+                          _row("승인할 것 · 가입 · 연차 · 계약 초과", badge: _todo, onTap: () => _open(const WorkerApprovalPage())),
                           _row("빈 근무 게시판", badge: _openShifts, onTap: () => _open(const OpenShiftPostPage())),
                           _row("공지 · 업무", onTap: () => _open(const NoticeTaskManagePage())),
                           _row("휴무 신청", onTap: () => _open(const OwnerDayOffPage())),

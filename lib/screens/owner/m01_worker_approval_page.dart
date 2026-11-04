@@ -119,7 +119,7 @@ class _WorkerApprovalPageState extends State<WorkerApprovalPage> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(padding: EdgeInsets.zero, children: [
-          const ThymeOwnerHeader(title: "가입 · 연차 승인", showBack: true),
+          const ThymeOwnerHeader(title: "승인할 것", subtitle: "가입 · 연차 · 역량 · 계약 초과", showBack: true),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
             child: _error != null
