@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thyme_frontend/core/api_service.dart';
 import 'package:thyme_frontend/core/session.dart';
+import 'package:thyme_frontend/models/owner.dart' show SwapRequestInfo;
 import 'package:thyme_frontend/screens/owner/m01_worker_approval_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_attendance_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_notice_task_page.dart';
+import 'package:thyme_frontend/screens/worker/h13_fill_vacancy_page.dart';
 import 'package:thyme_frontend/screens/worker/j01_store_code_page.dart';
 import 'package:thyme_frontend/screens/worker/j04_approval_waiting_page.dart';
 import 'package:thyme_frontend/screens/worker/w11_fixed_schedule_page.dart';
@@ -576,5 +578,39 @@ void main() {
       {'dayOfWeek': 'MONDAY', 'startTime': '09:00', 'endTime': '12:00', 'label': '전공 수업', 'category': 'STUDY'},
       {'dayOfWeek': 'WEDNESDAY', 'startTime': '09:00', 'endTime': '12:00', 'label': '전공 수업', 'category': 'STUDY'},
     ]);
+  });
+
+  testWidgets('H13 대타 요청을 보내면 화면에 남아 후보별 응답 상태를 다시 받아 본다', (tester) async {
+    Map<String, Object?> cand(int id, String name, {String? status, int? waiting}) => {
+          'employeeId': id, 'name': name, 'eligible': true, 'weeklyHours': 10, 'coveredSkills': [], 'reasons': [],
+          'contactStatus': status, 'waitingMinutes': waiting,
+        };
+    var cands = [cand(4, '하준'), cand(5, '민지'), cand(6, '도윤')];
+    server.routes['GET $_store/swap-requests/1/candidates'] = (_) => cands;
+    server.routes['POST $_store/swap-requests/1/offers'] = (o) {
+      cands = [cand(4, '하준', status: 'SENT', waiting: 0), cand(5, '민지', status: 'SENT', waiting: 0), cand(6, '도윤')];
+      return {'id': 1, 'status': 'OFFERED'};
+    };
+    await pumpScreen(tester, FillVacancyPage(
+      request: SwapRequestInfo.fromJson({
+        'id': 1, 'workDate': '2026-11-20', 'startTime': '09:00:00', 'endTime': '14:00:00',
+        'requesterName': '유나', 'reasonCategory': 'PERSONAL', 'status': 'REQUESTED',
+      }),
+    ));
+    await settle(tester);
+    await tapText(tester, '2명에게 대타 요청 보내기');
+    expect(server.sent('POST', '$_store/swap-requests/1/offers').single.$3, {'employeeIds': [4, 5]});
+    // 화면에 남아 상태를 보여 준다 (예전엔 대타·교대 탭으로 넘어감)
+    expect(find.byType(FillVacancyPage), findsOneWidget);
+    expect(find.text('2명이 확인 중이에요. 먼저 수락한 한 명으로 정해져요'), findsOneWidget);
+    expect(find.text('확인 중 0분'), findsNWidgets(2));
+    expect(find.text('홈으로'), findsOneWidget);
+
+    // 하준이 수락 → 새로고침하면 사장님 승인 대기
+    cands = [cand(4, '하준', status: 'PENDING_APPROVAL'), cand(5, '민지', status: 'CLOSED'), cand(6, '도윤')];
+    await tapText(tester, '새로고침');
+    expect(find.text('하준님이 수락했어요. 사장님이 승인하면 확정돼요'), findsOneWidget);
+    expect(find.text('수락 · 승인 대기'), findsOneWidget);
+    expect(find.text('마감'), findsOneWidget);
   });
 }
