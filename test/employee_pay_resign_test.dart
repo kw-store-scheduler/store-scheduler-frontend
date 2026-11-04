@@ -125,6 +125,19 @@ void main() {
     expect(find.text('감액 없음'), findsOneWidget);
   });
 
+  testWidgets('수습 시급을 입력칸에 직접 쳐서 저장해도 시트가 닫히며 오류가 나지 않는다', (tester) async {
+    await open(tester);
+    await tapText(tester, '수습 시급');
+    await tester.tap(find.byType(TextField)); // 포커스가 있는 채로 닫혀야 예전 오류(used after disposed)가 났다
+    await tester.enterText(find.byType(TextField), '9600');
+    await tester.pump();
+    await tapText(tester, '저장');
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    final put = server.requests.singleWhere((r) => r.$1 == 'PUT');
+    expect((put.$3 as Map)['probationWage'], 9600);
+  });
+
   testWidgets('퇴사 예정을 걸고, 다시 취소한다', (tester) async {
     await open(tester);
     await tapText(tester, '퇴사 처리');
