@@ -20,6 +20,7 @@ import 'o04_curation_page.dart';
 import 'o05_labor_law_page.dart';
 import 'o06_exception_days_page.dart';
 import 'owner_attendance_page.dart';
+import 'owner_day_off_page.dart';
 import 'owner_notice_task_page.dart';
 import 'owner_staffing_suggestion_page.dart';
 import 'p07_worker_list_page.dart';
@@ -277,6 +278,7 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
                           _row("가입 · 연차 · 계약 초과 승인", badge: _todo, onTap: () => _open(const WorkerApprovalPage())),
                           _row("빈 근무 게시판", badge: _openShifts, onTap: () => _open(const OpenShiftPostPage())),
                           _row("공지 · 업무", onTap: () => _open(const NoticeTaskManagePage())),
+                          _row("휴무 신청", onTap: () => _open(const OwnerDayOffPage())),
                           _row("출퇴근 기록", onTap: () => _open(const OwnerAttendancePage())),
                         ]),
                         _group("계정", [

@@ -19,11 +19,14 @@ enum DayOffFallback {
   final String label;
 }
 
-/// 휴무 신청 한 건 (GET /day-offs/my)
+/// 휴무 신청 한 건 (GET /day-offs/my, 점주는 GET /day-offs)
 class DayOff {
-  const DayOff({this.id, required this.date, required this.type, this.reason, this.fallbacks = const [], this.downgraded = false});
+  const DayOff({this.id, this.employeeName, required this.date, required this.type, this.reason, this.fallbacks = const [], this.downgraded = false});
 
   final int? id;
+
+  /// 점주가 매장 전체를 볼 때 누구 신청인지
+  final String? employeeName;
   final DateTime date;
   final DayOffType type;
   final String? reason;
@@ -37,6 +40,7 @@ class DayOff {
 
   factory DayOff.fromJson(Map<String, dynamic> j) => DayOff(
         id: j['id'] as int?,
+        employeeName: j['employeeName'] as String?,
         date: DateTime.parse(j['date'] as String),
         type: fromServerEnum(DayOffType.values, j['type'] as String),
         reason: j['reason'] as String?,
@@ -88,6 +92,12 @@ class DayOffApi {
       }) as Map<String, dynamic>);
 
   Future<void> cancel(int id) => _api.delete('$_store/day-offs/$id');
+
+  /// 점주: 기간 안의 매장 전체 휴무 신청
+  Future<List<DayOff>> store(DateTime from, DateTime to) async => [
+        for (final j in await _api.get('$_store/day-offs', query: {'from': dateParam(from), 'to': dateParam(to)}) as List)
+          DayOff.fromJson(j as Map<String, dynamic>),
+      ];
 
   /// 직원: 남은 연차와 이번 달 최대 사용
   Future<LeavePlan> leavePlan(DateTime month) async => LeavePlan.fromJson(

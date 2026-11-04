@@ -10,6 +10,7 @@ import 'package:thyme_frontend/models/owner.dart' show SwapRequestInfo;
 import 'package:thyme_frontend/screens/owner/m01_worker_approval_page.dart';
 import 'package:thyme_frontend/screens/owner/o04_curation_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_attendance_page.dart';
+import 'package:thyme_frontend/screens/owner/owner_day_off_page.dart';
 import 'package:thyme_frontend/screens/owner/owner_notice_task_page.dart';
 import 'package:thyme_frontend/screens/worker/h12_absence_report_page.dart';
 import 'package:thyme_frontend/screens/worker/h13_fill_vacancy_page.dart';
@@ -685,5 +686,26 @@ void main() {
     await tapText(tester, '역량 삭제');
     expect(server.sent('DELETE', '$_store/skills/2'), hasLength(1));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('점주 휴무 신청: 다음 달 GET /day-offs?from&to, 날짜별로 필수·희망과 대안', (tester) async {
+    final now = DateTime.now();
+    final first = DateTime(now.year, now.month + 1);
+    final last = DateTime(now.year, now.month + 2, 0);
+    String ymd(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    final day = ymd(DateTime(first.year, first.month, 7));
+    server.routes['GET $_store/day-offs'] = (_) => [
+          {'id': 1, 'employeeId': 3, 'employeeName': '유나', 'date': day, 'type': 'MUST', 'reason': '가족 행사', 'fallbacks': [], 'downgraded': false},
+          {'id': 2, 'employeeId': 4, 'employeeName': '하준', 'date': day, 'type': 'PREFER', 'reason': null,
+            'fallbacks': ['AFTERNOON_OFF', 'SWAP_DAY'], 'downgraded': true},
+        ];
+    await pumpScreen(tester, const OwnerDayOffPage());
+    await settle(tester);
+    expect(server.sent('GET', '$_store/day-offs?from=${ymd(first)}&to=${ymd(last)}'), hasLength(1));
+    expect(find.text('2건 · 필수 1 · 희망 1'), findsOneWidget);
+    expect(find.text('유나'), findsOneWidget);
+    expect(find.text('필수'), findsOneWidget);
+    expect(find.text('안 되면 오후만 쉬기 → 다른 날과 교환'), findsOneWidget);
+    expect(find.text('희망 (필수 한도 넘음)'), findsOneWidget);
   });
 }
