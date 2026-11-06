@@ -11,7 +11,7 @@
 ```bash
 flutter pub get
 flutter run                                   # 서버 주소를 안 주면 로컬(localhost:8080, 안드로이드 에뮬레이터는 10.0.2.2:8080)
-flutter run --dart-define=API_BASE_URL=https://store-scheduler-backend-cqpv.onrender.com
+flutter run --dart-define=API_BASE_URL=https://api.13-124-219-171.sslip.io
 ```
 
 - 로그인은 아이디·비밀번호입니다 (백엔드에 소셜·휴대폰 로그인이 아직 없음). 로그인 화면에서 회원가입도 됩니다.
@@ -23,9 +23,12 @@ flutter run --dart-define=API_BASE_URL=https://store-scheduler-backend-cqpv.onre
 
 ```bash
 flutter build web --release \
-  --dart-define=API_BASE_URL=https://store-scheduler-backend-cqpv.onrender.com
+  --dart-define=API_BASE_URL=https://api.13-124-219-171.sslip.io \
+  --dart-define=DEV_LOGIN=true
 firebase deploy --only hosting
 ```
+
+- `DEV_LOGIN=true`가 없으면 릴리스 빌드에 개발용 로그인이 안 보입니다. 소셜 로그인이 아직 없어서 **빠뜨리면 아무도 로그인할 수 없습니다.**
 
 - 배포 설정은 `firebase.json`의 `hosting`(build/web, 모든 경로를 index.html로)과 `.firebaserc`(프로젝트 thyme-6730c)에 있습니다.
 - 루트 경로에 올리므로 `--base-href`는 필요 없습니다. GitHub Pages처럼 하위 경로(`/store-scheduler-frontend/`)에 올릴 때만
