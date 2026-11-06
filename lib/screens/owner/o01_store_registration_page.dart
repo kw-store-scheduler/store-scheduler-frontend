@@ -3,6 +3,7 @@ import '../../core/api_service.dart';
 import '../../core/store_api.dart';
 import '../../core/theme.dart';
 import '../../models/store.dart';
+import '../../widgets/thyme_back_button.dart';
 import '../../widgets/thyme_logo.dart';
 import '../../widgets/thyme_step_app_bar.dart';
 import 'o02_schedule_cycle_page.dart';
@@ -79,12 +80,19 @@ class _StoreRegistrationPageState extends State<StoreRegistrationPage> {
     final canNext = locked || _name.text.trim().isNotEmpty;
     return Scaffold(
       backgroundColor: ThymeColor.bg,
-      appBar: const ThymeStepAppBar(
+      appBar: ThymeStepAppBar(
         step: 1,
         total: 6,
         group: '매장 등록',
         owner: true,
-        leading: Padding(padding: EdgeInsets.only(left: 20), child: Align(alignment: Alignment.centerLeft, child: ThymeLogo(size: 26, color: ThymeColor.text))),
+        // 시안은 로고만. 점주 홈 '새 매장 추가'·A06 에서 열렸으면(아래에 화면이 있으면) 그만두고 돌아갈 ← 를 로고 앞에
+        // (Navigator.canPop 은 위에 O02 가 쌓여도 참이라, 이 화면이 첫 화면인지로 본다)
+        leading: !(ModalRoute.of(context)?.isFirst ?? true)
+            ? const Row(children: [
+                ThymeBackButton(color: ThymeColor.text, size: 20),
+                Flexible(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: ThymeLogo(size: 22, color: ThymeColor.text))),
+              ])
+            : const Padding(padding: EdgeInsets.only(left: 20), child: Align(alignment: Alignment.centerLeft, child: ThymeLogo(size: 26, color: ThymeColor.text))),
       ),
       body: Column(
         children: [
