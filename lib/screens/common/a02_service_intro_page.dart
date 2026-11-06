@@ -51,8 +51,6 @@ class ServiceIntroPage extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                const Text("잎 하나가 근무 한 칸이에요. 빈 잎은 결원.", style: TextStyle(fontSize: 13, color: ThymeColor.onPrimarySub)),
               ],
             ),
           ),
