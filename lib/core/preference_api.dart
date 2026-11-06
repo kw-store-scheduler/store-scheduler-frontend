@@ -15,11 +15,15 @@ class PreferenceApi {
   String get _base => '/api/stores/${_session.requireStoreId()}/preferences';
 
   /// 희망 신청 첫 단계(알바 W00, 직원 E01)에서 초안을 만든다.
-  /// 서버의 그달 칸·지난번 제출값으로 채운다. 실패하면 ApiException
-  Future<PreferenceDraft> startDraft(DateTime month, {required bool fromLastMonth, bool fullTime = false}) async {
+  /// [mine]이면 그달에 이미 낸 값으로 채운다 ('고치기'. 아직 안 냈으면 [fromLastMonth] 대로).
+  /// [fromLastMonth]면 지난달 답으로, 둘 다 아니면 빈 초안. 실패하면 ApiException
+  Future<PreferenceDraft> startDraft(DateTime month, {required bool fromLastMonth, bool mine = false, bool fullTime = false}) async {
     final draft = PreferenceDraft(month: month, fullTime: fullTime);
     draft.view = await getMine(month);
-    if (fromLastMonth) {
+    if (mine && draft.view!.submitted) {
+      draft.fillFrom(draft.view!);
+      draft.loadedMine = true;
+    } else if (fromLastMonth) {
       try {
         draft.fillFrom(await draftFromPrevious(month));
         draft.loadedPrevious = true;

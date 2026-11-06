@@ -1,5 +1,6 @@
 import '../models/owner.dart';
 import '../models/preference.dart' show toServerEnum;
+import '../models/store.dart' show dateParam;
 import '../models/worker.dart';
 import 'api_service.dart';
 import 'session.dart';
@@ -32,6 +33,12 @@ class WorkerApi {
   Future<void> clockIn() => _api.post('$_store/attendance/clock-in');
 
   Future<void> clockOut() => _api.post('$_store/attendance/clock-out');
+
+  /// 내 출퇴근 기록 (from~to). 근로자가 직접 고치는 API 는 없다 → 잘못 찍혔으면 점주가 고친다
+  Future<List<AttendanceRecord>> myAttendance(DateTime from, DateTime to) async => [
+        for (final j in await _api.get('$_store/attendance/my', query: {'from': dateParam(from), 'to': dateParam(to)}) as List)
+          AttendanceRecord.fromJson(j as Map<String, dynamic>)
+      ];
 
   // ── W07 내 근무표 (열면 서버가 확정 근무표를 확인한 것으로 기록한다)
 

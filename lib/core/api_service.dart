@@ -4,10 +4,13 @@ import 'package:flutter/foundation.dart';
 /// 서버 에러를 화면에서 그대로 보여줄 수 있게 정리한 예외.
 /// 백엔드(GlobalExceptionHandler)는 에러를 항상 `{"message": "..."}`로 내려준다.
 class ApiException implements Exception {
-  ApiException(this.message, {this.statusCode});
+  ApiException(this.message, {this.statusCode, this.forceable = false});
 
   final String message;
   final int? statusCode;
+
+  /// 근무 추가·고치기에서 점주가 force 로 진행할 수 있는 규칙 위반 (400 본문 `forceable: true`)
+  final bool forceable;
 
   bool get isUnauthorized => statusCode == 401;
 
@@ -102,16 +105,23 @@ class ApiService {
             return (await request()).data;
           } on DioException catch (e2) {
             if (e2.response?.statusCode == 401) onUnauthorized?.call();
-            throw ApiException(_messageOf(e2), statusCode: e2.response?.statusCode);
+            throw _exceptionOf(e2);
           }
         }
         onUnauthorized?.call();
       }
-      throw ApiException(_messageOf(e), statusCode: status);
+      throw _exceptionOf(e);
     }
   }
 
-  /// 리프레시 토큰으로 새 토큰 쌍을 받는다. 동시에 불려도 서버에는 한 번만 보낸다. 성공하면 true
+  static ApiException _exceptionOf(DioException e) {
+    final body = e.response?.data;
+    return ApiException(_messageOf(e), statusCode: e.response?.statusCode, forceable: body is Map && body['forceable'] == true);
+  }
+
+  /// 리프레시 토큰으로 새 토큰 쌍을 받는다. 동시에 불려도 서버에는 한 번만 보낸다.
+  /// 성공하면 true, 서버가 리프레시 토큰을 거절하면(401·400) false → 로그아웃.
+  /// 연결 오류·시간 초과·서버 오류(5xx)는 로그인이 끊긴 게 아니므로 ApiException 으로 던진다 (로그인 유지, 오류만 표시)
   Future<bool> _refresh() {
     final rt = refreshToken;
     if (rt == null) return Future.value(false);
@@ -122,8 +132,10 @@ class ApiService {
         refreshToken = res.data['refreshToken'] as String;
         await onTokensRefreshed?.call();
         return true;
-      } on DioException {
-        return false;
+      } on DioException catch (e) {
+        final status = e.response?.statusCode;
+        if (status == 401 || status == 400) return false;
+        throw ApiException(_messageOf(e), statusCode: status);
       } finally {
         _refreshing = null;
       }

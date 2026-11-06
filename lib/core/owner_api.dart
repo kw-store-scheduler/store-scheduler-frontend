@@ -1,7 +1,8 @@
 import '../models/owner.dart';
-import '../models/preference.dart' show toServerEnum;
+import '../models/preference.dart' show FixedSchedule, toServerEnum;
 import '../models/store.dart';
 import '../models/user.dart';
+import '../models/worker.dart' show Trade;
 import 'api_service.dart';
 import 'session.dart';
 
@@ -54,6 +55,13 @@ class OwnerApi {
   /// 승인된 직원 한 명 (수습 시급·공제·퇴사 예정일은 프로필 응답에 없어서 목록에서 찾는다)
   Future<EmployeeInfo?> employee(int employeeId) async => (await employees()).where((e) => e.id == employeeId).firstOrNull;
 
+  /// 퇴사한 사람 (지난 근무·급여 기록은 남아 있다)
+  Future<List<EmployeeInfo>> resignedEmployees() async => _list(await _api.get('$_store/employees/resigned'), EmployeeInfo.fromJson);
+
+  /// 그달 직전 4주 마감 보고로 본 요일·교대별 필요 인원 제안 (month = "2026-11")
+  Future<StaffingSuggestions> staffingSuggestions(String month) async =>
+      StaffingSuggestions.fromJson(await _api.get('$_store/staffing-suggestions', query: {'month': month}) as Map<String, dynamic>);
+
   /// 수습 시급·공제 설정. 보낸 값으로 통째로 바뀐다 (probationWage 가 null 이면 수습 감액 해제).
   /// 수습 시급은 1년 이상 계약 · 단순노무 아님일 때만 받는다. 이 두 값은 서버에 저장되지 않아 매번 보낸다
   Future<EmployeeInfo> updatePaySettings(int employeeId,
@@ -81,12 +89,30 @@ class OwnerApi {
   Future<LeaveRequestInfo> approveLeave(int id) async =>
       LeaveRequestInfo.fromJson(await _api.post('$_store/leaves/$id/approve') as Map<String, dynamic>);
 
+  /// 그달 직원별 희망 제출 현황 (month = "2026-11")
+  Future<List<PreferenceSubmissionRow>> preferenceSubmissions(String month) async {
+    final j = await _api.get('$_store/preferences', query: {'month': month}) as Map<String, dynamic>;
+    return [for (final e in j['employees'] as List? ?? const []) PreferenceSubmissionRow.fromJson(e as Map<String, dynamic>)];
+  }
+
+  /// 계약 상한을 넘긴 근무량 신청 승인·거절. 승인하지 않으면 근무표를 만들 때 계약 상한으로 잘린다
+  Future<void> decideContractExceed(int employeeId, String month, {required bool approved}) =>
+      _api.post('$_store/preferences/$employeeId/contract-exceed', query: {'month': month, 'approved': approved});
+
   Future<void> rejectLeave(int id) => _api.post('$_store/leaves/$id/reject');
 
   Future<List<SkillRequest>> skillRequests() async => _list(await _api.get('$_store/skill-requests'), SkillRequest.fromJson);
 
   Future<EmployeeProfile> profile(int employeeId) async =>
       EmployeeProfile.fromJson(await _api.get('$_store/employees/$employeeId/profile') as Map<String, dynamic>);
+
+  /// 직원의 고정 일정 (W11 에서 직원이 낸 것, P11)
+  Future<List<FixedSchedule>> fixedSchedules(int employeeId) async =>
+      [for (final j in await _api.get('$_store/employees/$employeeId/fixed-schedules') as List) FixedSchedule.fromJson(j as Map<String, dynamic>)];
+
+  /// 직원 대신 고정 일정 입력 (통째로 교체, 빈 목록이면 모두 삭제)
+  Future<void> replaceFixedSchedules(int employeeId, List<FixedSchedule> list) =>
+      _api.put('$_store/employees/$employeeId/fixed-schedules', data: [for (final f in list) f.toJson()]);
 
   /// 보낸 항목만 바뀐다. 바뀐 내용은 이력에 남고 직원에게 알림이 간다
   Future<EmployeeProfile> updateProfile(
@@ -116,6 +142,57 @@ class OwnerApi {
       EmployeeProfile.fromJson(await _api.post('$_store/employees/$employeeId/skills/$skillId/keep') as Map<String, dynamic>);
 
   // ── 근무표 (근무표 탭 · P03 · M05 · P04)
+
+  /// 근무 직접 추가. 휴무·가용 시간·주 52시간 같은 규칙에 걸리면 400 + 사유 → 점주가 그래도 하면 force: true 로 다시
+  Future<ScheduleEntry> addSchedule({required int employeeId, required DateTime date, required String start, required String end, bool force = false}) async =>
+      ScheduleEntry.fromJson(await _api.post('$_store/schedules', data: {
+        'employeeId': employeeId,
+        'workDate': dateParam(date),
+        'startTime': start,
+        'endTime': end,
+        'force': force,
+      }) as Map<String, dynamic>);
+
+  /// 근무 고치기 (날짜·시간, employeeId 를 주면 담당자도). 대타·근무 바꾸기가 진행 중인 근무는 서버가 막는다
+  Future<ScheduleEntry> updateSchedule(int scheduleId,
+          {required int employeeId, required DateTime date, required String start, required String end, bool force = false}) async =>
+      ScheduleEntry.fromJson(await _api.put('$_store/schedules/$scheduleId', data: {
+        'employeeId': employeeId,
+        'workDate': dateParam(date),
+        'startTime': start,
+        'endTime': end,
+        'force': force,
+      }) as Map<String, dynamic>);
+
+  Future<void> deleteSchedule(int scheduleId) => _api.delete('$_store/schedules/$scheduleId');
+
+  // ── 출퇴근 기록
+
+  /// 그날 출퇴근 기록 (출근을 찍은 사람만 온다)
+  Future<List<AttendanceRecord>> attendance(DateTime date) async =>
+      _list(await _api.get('$_store/attendance', query: {'date': dateParam(date)}), AttendanceRecord.fromJson);
+
+  /// 근무 시작이 지났는데 출근 기록이 없는 사람 (결근·출근 안 찍음)
+  Future<List<AttendanceAbsence>> absences(DateTime date) async =>
+      _list(await _api.get('$_store/attendance/absences', query: {'date': dateParam(date)}), AttendanceAbsence.fromJson);
+
+  /// 출근을 아예 안 찍은 날의 기록 만들기 (앞으로의 시각·이미 기록 있는 날은 서버가 400)
+  Future<AttendanceRecord> createAttendance(int employeeId, {required DateTime clockIn, DateTime? clockOut}) async =>
+      AttendanceRecord.fromJson(await _api.post('$_store/attendance', data: {
+        'employeeId': employeeId,
+        'clockIn': _localDateTime(clockIn),
+        'clockOut': clockOut == null ? null : _localDateTime(clockOut),
+      }) as Map<String, dynamic>);
+
+  /// 퇴근 누락·잘못 찍은 기록 고치기 (출근 시각은 꼭, 퇴근은 비워 둘 수 있다)
+  Future<AttendanceRecord> correctAttendance(int id, {required DateTime clockIn, DateTime? clockOut}) async =>
+      AttendanceRecord.fromJson(await _api.patch('$_store/attendance/$id', data: {
+        'clockIn': _localDateTime(clockIn),
+        'clockOut': clockOut == null ? null : _localDateTime(clockOut),
+      }) as Map<String, dynamic>);
+
+  /// 서버 LocalDateTime 형식 "2026-10-31T09:00:00" (시간대 없이)
+  static String _localDateTime(DateTime t) => '${dateParam(t)}T${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}:00';
 
   Future<List<ScheduleEntry>> schedules() async => _list(await _api.get('$_store/schedules'), ScheduleEntry.fromJson);
 
@@ -164,6 +241,16 @@ class OwnerApi {
 
   /// 직원끼리 구한 대타 승인 / 거절
   Future<void> approveSwap(int requestId) => _api.post('$_store/swap-requests/$requestId/approve');
+
+  // ── 근무 바꾸기 (W09 에서 직원끼리 넘기기·맞교환 → 동료 수락 → 사장님 승인)
+
+  /// 진행 중인 근무 바꾸기 (동료 응답 대기 · 사장님 승인 대기)
+  Future<List<Trade>> trades() async => _list(await _api.get('$_store/trades'), Trade.fromJson);
+
+  /// 동료가 수락한 요청만 승인할 수 있다. 승인하면 근무표가 바뀐다 (매주 반복이면 그달 남은 같은 근무까지)
+  Future<void> approveTrade(int tradeId) => _api.post('$_store/trades/$tradeId/approve');
+
+  Future<void> rejectTrade(int tradeId) => _api.post('$_store/trades/$tradeId/reject');
 
   Future<void> rejectSubstitute(int requestId) => _api.post('$_store/swap-requests/$requestId/reject-substitute');
 

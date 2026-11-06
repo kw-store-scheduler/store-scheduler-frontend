@@ -7,6 +7,8 @@ import 'package:thyme_frontend/core/api_service.dart';
 import 'package:thyme_frontend/core/session.dart';
 import 'package:thyme_frontend/screens/worker/w00_load_last_month_page.dart';
 import 'package:thyme_frontend/screens/worker/h01_part_timer_home_page.dart';
+import 'package:thyme_frontend/screens/worker/w06_work_hours_page.dart';
+import 'package:thyme_frontend/models/preference.dart';
 
 import 'test_helpers.dart';
 
@@ -16,6 +18,9 @@ class _FakeServer implements HttpClientAdapter {
 
   /// 첫 달 직원: 지난달 답이 없다 (서버는 400 + 메시지)
   bool firstMonth = false;
+
+  /// 이번 달(11월)에 이미 냈다: 11/3 마감 선호 1칸, 주말 3회 (홈의 '고치기'로 들어온 경우)
+  bool submittedThisMonth = false;
 
   /// 2026년 11월, 교대 2개(오픈 11, 마감 12). 11/2 오픈은 수업으로 잠김
   static Map<String, dynamic> month({Map<String, String> levels = const {}}) => {
@@ -51,7 +56,13 @@ class _FakeServer implements HttpClientAdapter {
               {'employeeId': 3, 'storeId': 7, 'storeName': '구시대 커피', 'status': 'APPROVED', 'employmentType': 'PART_TIME'},
             ],
           },
-        ('GET', '/api/stores/7/preferences/my') => month(),
+        ('GET', '/api/stores/7/preferences/my') => submittedThisMonth
+            ? {
+                ...month(levels: {'3/12': 'PREFERRED'}),
+                'submitted': true,
+                'submission': {'submittedAt': '2026-10-20T10:00:00', 'maxWeekendShifts': 3, 'priorities': []},
+              }
+            : month(),
         // 지난달 답: 11/3·11/4 오픈 선호
         ('GET', '/api/stores/7/preferences/my/draft') => month(levels: {'3/11': 'PREFERRED', '4/11': 'PREFERRED'}),
         ('PUT', '/api/stores/7/preferences/my') => month(),
@@ -213,5 +224,54 @@ void main() {
     await tapNext(tester, '시작하기');
     await tapNext(tester, '다음'); // W11 → W02
     expect(find.text('선호'), findsOneWidget); // 범례만 (불러온 칸 없음)
+  });
+
+  testWidgets('이미 냈으면 W00 이 이번 달에 낸 답을 기본으로 불러와 고친다 (지난달 답으로 덮어쓰지 않음)', (tester) async {
+    server.submittedThisMonth = true;
+    await tester.runAsync(() => Session.instance.login('staff01', 'pw'));
+    await pumpScreen(tester, LoadLastMonthPage(month: DateTime(2026, 11)));
+    await settle(tester);
+    expect(find.text('이미 낸 희망을 고칠까요?'), findsOneWidget);
+    expect(find.text('11월에 낸 답 고치기'), findsOneWidget);
+    expect(find.text('주말'), findsOneWidget); // 낸 내용 요약: 한 달 3회까지
+    expect(find.text('한 달 3회까지'), findsOneWidget);
+    await tapNext(tester, '시작하기');
+    await tapNext(tester, '다음'); // W11 → W02
+    expect(find.text('선호'), findsNWidgets(2)); // 이번 달에 낸 칸 1 + 범례 1 (지난달 2칸이 아님)
+  });
+
+  group('W06 계약 초과: 같은 최대 시간으로 이미 냈으면 사장님 결정을 보여 준다', () {
+    Future<void> open(WidgetTester tester, String? status, {int submittedMax = 86}) async {
+      Session.instance.storeId = 7;
+      final draft = PreferenceDraft(month: DateTime(2026, 11))
+        ..maxMonthlyHours = 86
+        ..view = PreferenceMonth.fromJson({
+          ..._FakeServer.month(),
+          'submitted': true,
+          'submission': {'submittedAt': '2026-10-20T10:00:00', 'maxMonthlyHours': submittedMax, 'contractExceedStatus': status},
+        });
+      await pumpScreen(tester, WorkHoursPage(draft: draft));
+      await settle(tester);
+    }
+
+    testWidgets('거절', (tester) async {
+      await open(tester, 'REJECTED');
+      expect(find.textContaining('사장님이 이 시간은 거절해서'), findsOneWidget);
+    });
+
+    testWidgets('승인', (tester) async {
+      await open(tester, 'APPROVED');
+      expect(find.textContaining('승인했어요'), findsOneWidget);
+    });
+
+    testWidgets('대기', (tester) async {
+      await open(tester, 'PENDING');
+      expect(find.textContaining('사장님 승인을 기다리고 있어요'), findsOneWidget);
+    });
+
+    testWidgets('시간이 달라지면 처음 안내 (다시 승인을 받아야 함)', (tester) async {
+      await open(tester, 'REJECTED', submittedMax: 100);
+      expect(find.textContaining('계약 상한보다 많이 일하려면 사장님 승인이 필요해요'), findsOneWidget);
+    });
   });
 }

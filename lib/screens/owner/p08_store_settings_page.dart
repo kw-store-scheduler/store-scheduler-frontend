@@ -19,6 +19,10 @@ import 'o03_store_shift_setup_page.dart';
 import 'o04_curation_page.dart';
 import 'o05_labor_law_page.dart';
 import 'o06_exception_days_page.dart';
+import 'owner_attendance_page.dart';
+import 'owner_day_off_page.dart';
+import 'owner_notice_task_page.dart';
+import 'owner_staffing_suggestion_page.dart';
 import 'p07_worker_list_page.dart';
 import 'p09_open_shift_post_page.dart';
 
@@ -64,7 +68,7 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
         _shifts = shifts.length;
         _windows = windows.length;
         _exceptions = exceptions.length;
-        _todo = home.pendingApprovals + home.pendingLeaves;
+        _todo = home.pendingApprovals + home.pendingLeaves + home.pendingContractApprovals; // M01 에서 처리하는 것 (P01 과 같게)
         _openShifts = open.length;
       });
       _industries = await api.industries();
@@ -88,6 +92,70 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
 
   String get _industryLabel => _industries.where((i) => i.code == _store?.industry).firstOrNull?.label ?? "";
 
+  /// 매장 이름·주소 고치기 (PATCH /api/stores/{id})
+  Future<void> _editInfo() async {
+    final s = _store!;
+    final r = await showModalBottomSheet<({String name, String address})>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ThymeColor.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => _StoreInfoSheet(name: s.name, address: s.address ?? ""),
+    );
+    if (r == null || !mounted) return;
+    try {
+      await StoreApi().updateInfo(name: r.name, address: r.address.isEmpty ? null : r.address);
+      await Session.instance.refreshMe(); // 헤더·매장 고르기에 쓰는 이름도 새로
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("매장 정보를 바꿨어요")));
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  /// 업종 바꾸기 (PATCH /api/stores/{id} industry). 역량·교대는 그대로 둔다
+  Future<void> _editIndustry() async {
+    final s = _store!;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ThymeColor.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text("업종", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Text("바꿔도 이미 만든 역량·교대는 그대로예요. 필요하면 각 설정에서 고쳐 주세요.",
+                  style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+            ),
+            for (final i in _industries)
+              ListTile(
+                title: Text(i.label),
+                trailing: i.code == s.industry ? const Icon(Icons.check, color: ThymeColor.primary) : null,
+                onTap: () => Navigator.pop(context, i.code),
+              ),
+          ]),
+        ),
+      ),
+    );
+    if (picked == null || picked == s.industry || !mounted) return;
+    try {
+      await StoreApi().updateInfo(name: s.name, address: s.address, industry: picked);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("업종을 바꿨어요")));
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   Future<void> _storeInfo() async {
     final s = _store!;
     await showModalBottomSheet(
@@ -98,8 +166,31 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            ListTile(title: const Text("매장 이름"), trailing: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold))),
-            ListTile(title: const Text("업종"), trailing: Text(_industryLabel, style: const TextStyle(fontWeight: FontWeight.bold))),
+            ListTile(
+              title: const Text("매장 이름 · 주소"),
+              subtitle: Text(s.address == null || s.address!.isEmpty ? "주소 없음" : s.address!),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                const Icon(Icons.chevron_right),
+              ]),
+              onTap: () {
+                Navigator.pop(context);
+                _editInfo();
+              },
+            ),
+            ListTile(
+              title: const Text("업종"),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(_industryLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
+                const Icon(Icons.chevron_right),
+              ]),
+              onTap: _industries.isEmpty
+                  ? null
+                  : () {
+                      Navigator.pop(context);
+                      _editIndustry();
+                    },
+            ),
             ListTile(
               title: const Text("근무표 주기"),
               subtitle: const Text("눌러서 바꾸기"),
@@ -111,10 +202,6 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
                 Navigator.pop(context);
                 _open(const ScheduleCyclePage(editing: true));
               },
-            ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Text("매장 이름·업종은 지금은 바꿀 수 없어요.", style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
             ),
           ]),
         ),
@@ -179,6 +266,7 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
                         _group("근무 규칙", [
                           _row("매장 정보 · 업종 · 주기", trailing: _cycleLabel, onTap: _storeInfo),
                           _row("교대 시간대 · 인원", trailing: "$_shifts개", onTap: () => _open(const StoreShiftSetupPage(editing: true))),
+                          _row("필요 인원 제안 · 마감 보고 기반", onTap: () => _open(const StaffingSuggestionPage())),
                           _row("평소와 다른 날", trailing: _exceptions == 0 ? null : "$_exceptions개", onTap: () => _open(const ExceptionDaysPage(editing: true))),
                           _row("리테일 큐레이션", badge: _windows, onTap: () => _open(const CurationPage(editing: true))),
                           _row("노동법 한도 · 수당",
@@ -187,8 +275,11 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
                         ]),
                         _group("사람", [
                           _row("근무자 목록 · 직원/알바", onTap: () => _open(const WorkerListPage())),
-                          _row("가입 · 연차 승인", badge: _todo, onTap: () => _open(const WorkerApprovalPage())),
+                          _row("승인할 것 · 가입 · 연차 · 계약 초과", badge: _todo, onTap: () => _open(const WorkerApprovalPage())),
                           _row("빈 근무 게시판", badge: _openShifts, onTap: () => _open(const OpenShiftPostPage())),
+                          _row("공지 · 업무", onTap: () => _open(const NoticeTaskManagePage())),
+                          _row("휴무 신청", onTap: () => _open(const OwnerDayOffPage())),
+                          _row("출퇴근 기록", onTap: () => _open(const OwnerAttendancePage())),
                         ]),
                         _group("계정", [
                           _row("매장 코드 다시 만들기", onTap: _reissue),
@@ -261,6 +352,49 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
               ),
             const SizedBox(width: 8),
             const Icon(Icons.chevron_right, color: ThymeColor.icon),
+          ]),
+        ),
+      );
+}
+
+/// 매장 이름·주소 입력 시트 (입력칸은 시트가 닫힐 때 같이 정리된다)
+class _StoreInfoSheet extends StatefulWidget {
+  const _StoreInfoSheet({required this.name, required this.address});
+
+  final String name;
+  final String address;
+
+  @override
+  State<_StoreInfoSheet> createState() => _StoreInfoSheetState();
+}
+
+class _StoreInfoSheetState extends State<_StoreInfoSheet> {
+  late final _name = TextEditingController(text: widget.name)..addListener(() => setState(() {}));
+  late final _address = TextEditingController(text: widget.address);
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _address.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, 16 + MediaQuery.viewInsetsOf(context).bottom),
+        child: SafeArea(
+          top: false,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const Text("매장 정보", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            TextField(controller: _name, autofocus: true, decoration: const InputDecoration(labelText: "매장 이름")),
+            const SizedBox(height: 12),
+            TextField(controller: _address, decoration: const InputDecoration(labelText: "주소 (선택)")),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: _name.text.trim().isEmpty ? null : () => Navigator.pop(context, (name: _name.text.trim(), address: _address.text.trim())),
+              child: const Text("저장"),
+            ),
           ]),
         ),
       );

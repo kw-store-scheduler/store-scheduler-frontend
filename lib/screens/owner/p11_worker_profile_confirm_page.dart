@@ -8,11 +8,14 @@ import '../../models/store.dart';
 import '../../models/user.dart';
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_owner_header.dart';
+import '../../widgets/thyme_text_controller_scope.dart';
+import '../worker/w11_fixed_schedule_page.dart';
 import 'm01_worker_approval_page.dart' show minimumWage2026;
 
 /// P11 근무자 프로필 관리. GET·PATCH /employees/{id}/profile
 /// 역량 신청 확정/유지 · 혼자 맡길 수 있는 일 · 수습 기간 · 계약 시간·직책(직원) · 시급 · 변경 이력 (바꾸면 근로자에게 알림)
 /// 급여 설정(공제·수습 시급, PUT /pay-settings) · 퇴사(예정) 처리·취소 (POST·DELETE /resign)
+/// 고정 일정 보기·대신 입력 (W11 화면을 점주 모드로, GET·PUT /employees/{id}/fixed-schedules)
 class WorkerProfileConfirmPage extends StatefulWidget {
   const WorkerProfileConfirmPage({super.key, required this.employeeId});
 
@@ -184,7 +187,6 @@ class _WorkerProfileConfirmPageState extends State<WorkerProfileConfirmPage> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("수습 시급은 입사일과 수습 기간이 있어야 정할 수 있어요. 위의 '수습'부터 정해 주세요.")));
       return;
     }
-    final c = TextEditingController(text: info.probationWage?.toString() ?? "$_probationFloor");
     var longContract = info.probationWage != null;
     var notSimpleLabor = info.probationWage != null;
     // null = 닫음, (wage: null) = 해제, (wage: n) = 저장
@@ -192,52 +194,54 @@ class _WorkerProfileConfirmPageState extends State<WorkerProfileConfirmPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: ThymeColor.surface,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheet) {
-          final wage = int.tryParse(c.text);
-          final ok = longContract && notSimpleLabor && wage != null && wage >= _probationFloor;
-          return Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 16 + MediaQuery.viewInsetsOf(context).bottom),
-            child: SafeArea(
-              top: false,
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                const Text("수습 시급", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
-                Text("수습 시작 3개월까지만, 최저임금의 90%(${won(_probationFloor)}) 이상으로 줄일 수 있어요. 아래 두 가지를 모두 확인해야 해요.",
-                    style: const TextStyle(fontSize: 13, color: ThymeColor.textSub, height: 1.5)),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: longContract,
-                  onChanged: (v) => setSheet(() => longContract = v ?? false),
-                  title: const Text("근로계약 기간이 1년 이상이에요"),
-                ),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: notSimpleLabor,
-                  onChanged: (v) => setSheet(() => notSimpleLabor = v ?? false),
-                  title: const Text("단순노무 직종이 아니에요"),
-                ),
-                const SizedBox(height: 4),
-                TextField(
-                  controller: c,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: (_) => setSheet(() {}),
-                  decoration: InputDecoration(labelText: "수습 시급 (원)", helperText: "${won(_probationFloor)} 이상"),
-                ),
-                const SizedBox(height: 16),
-                FilledButton(onPressed: ok ? () => Navigator.pop(context, (wage: wage)) : null, child: const Text("저장")),
-                if (info.probationWage != null)
-                  TextButton(onPressed: () => Navigator.pop(context, (wage: null)), child: const Text("수습 감액 없애기 (시급 그대로)")),
-              ]),
-            ),
-          );
-        },
+      builder: (context) => ThymeTextControllerScope(
+        text: info.probationWage?.toString() ?? "$_probationFloor",
+        builder: (context, c) => StatefulBuilder(
+          builder: (context, setSheet) {
+            final wage = int.tryParse(c.text);
+            final ok = longContract && notSimpleLabor && wage != null && wage >= _probationFloor;
+            return Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 16 + MediaQuery.viewInsetsOf(context).bottom),
+              child: SafeArea(
+                top: false,
+                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  const Text("수습 시급", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Text("수습 시작 3개월까지만, 최저임금의 90%(${won(_probationFloor)}) 이상으로 줄일 수 있어요. 아래 두 가지를 모두 확인해야 해요.",
+                      style: const TextStyle(fontSize: 13, color: ThymeColor.textSub, height: 1.5)),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: longContract,
+                    onChanged: (v) => setSheet(() => longContract = v ?? false),
+                    title: const Text("근로계약 기간이 1년 이상이에요"),
+                  ),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: notSimpleLabor,
+                    onChanged: (v) => setSheet(() => notSimpleLabor = v ?? false),
+                    title: const Text("단순노무 직종이 아니에요"),
+                  ),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: c,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (_) => setSheet(() {}),
+                    decoration: InputDecoration(labelText: "수습 시급 (원)", helperText: "${won(_probationFloor)} 이상"),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(onPressed: ok ? () => Navigator.pop(context, (wage: wage)) : null, child: const Text("저장")),
+                  if (info.probationWage != null)
+                    TextButton(onPressed: () => Navigator.pop(context, (wage: null)), child: const Text("수습 감액 없애기 (시급 그대로)")),
+                ]),
+              ),
+            );
+          },
+        ),
       ),
     );
-    c.dispose();
     if (result == null || !mounted) return;
     await _savePay(
       deduction: info.deduction,
@@ -347,33 +351,34 @@ class _WorkerProfileConfirmPageState extends State<WorkerProfileConfirmPage> {
   }
 
   Future<int?> _askNumber(String label, int? initial) async {
-    final c = TextEditingController(text: initial?.toString() ?? "");
     final v = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
       backgroundColor: ThymeColor.surface,
-      builder: (context) => Padding(
-        padding: EdgeInsets.fromLTRB(20, 20, 20, 16 + MediaQuery.viewInsetsOf(context).bottom),
-        child: SafeArea(
-          top: false,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(
-              controller: c,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: InputDecoration(labelText: label),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(onPressed: () => Navigator.pop(context, int.tryParse(c.text)), child: const Text("저장")),
-            ),
-          ]),
+      builder: (context) => ThymeTextControllerScope(
+        text: initial?.toString() ?? "",
+        builder: (context, c) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 16 + MediaQuery.viewInsetsOf(context).bottom),
+          child: SafeArea(
+            top: false,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: c,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: InputDecoration(labelText: label),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(onPressed: () => Navigator.pop(context, int.tryParse(c.text)), child: const Text("저장")),
+              ),
+            ]),
+          ),
         ),
       ),
     );
-    c.dispose();
     return v;
   }
 
@@ -414,6 +419,8 @@ class _WorkerProfileConfirmPageState extends State<WorkerProfileConfirmPage> {
                         _permissionsCard(p),
                         if (p.employmentType == EmploymentType.fullTime) ...[const SizedBox(height: 12), _positionCard(p)],
                         if (_info != null) ...[const SizedBox(height: 12), _payCard(_info!)],
+                        const SizedBox(height: 12),
+                        _fixedScheduleCard(p),
                         const SizedBox(height: 20),
                         Text("변경 이력 · 바꾸면 ${p.displayName}님에게 알림이 가요",
                             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ThymeColor.textSub)),
@@ -582,6 +589,23 @@ class _WorkerProfileConfirmPageState extends State<WorkerProfileConfirmPage> {
             onTap: _editProbationWage,
           ),
         ]),
+      );
+
+  Widget _fixedScheduleCard(EmployeeProfile p) => Material(
+        color: ThymeColor.surface,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 18),
+          enabled: !_busy,
+          title: const Text("고정 일정", style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+          subtitle: const Text("매주 못 나오는 시간 · 대신 입력할 수 있어요", style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => FixedSchedulePage(employeeId: widget.employeeId, employeeName: p.displayName)),
+          ),
+        ),
       );
 
   Widget _resignCard(EmployeeInfo info) {

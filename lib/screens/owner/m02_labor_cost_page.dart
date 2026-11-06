@@ -7,6 +7,7 @@ import '../../models/owner.dart';
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_owner_header.dart';
 import '../../widgets/thyme_owner_tab_bar.dart';
+import '../../widgets/thyme_text_controller_scope.dart';
 import 'm01_worker_approval_page.dart' show minimumWage2026;
 
 /// M02 인건비 (점주 하단 탭 '인건비'). 확정 근무표로 계산한 월 예상 인건비 (GET /payroll)
@@ -54,32 +55,33 @@ class _LaborCostPageState extends State<LaborCostPage> {
   }
 
   Future<void> _editWage(PayrollRow r) async {
-    final c = TextEditingController(text: "${r.hourlyWage}");
     final wage = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
       backgroundColor: ThymeColor.surface,
-      builder: (context) => Padding(
-        padding: EdgeInsets.fromLTRB(20, 20, 20, 16 + MediaQuery.viewInsetsOf(context).bottom),
-        child: SafeArea(
-          top: false,
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text("${r.employeeName} 시급", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: c,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(labelText: "시급 (원)", helperText: "2026년 최저시급 10,320원"),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: () => Navigator.pop(context, int.tryParse(c.text)), child: const Text("저장")),
-          ]),
+      builder: (context) => ThymeTextControllerScope(
+        text: "${r.hourlyWage}",
+        builder: (context, c) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 16 + MediaQuery.viewInsetsOf(context).bottom),
+          child: SafeArea(
+            top: false,
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text("${r.employeeName} 시급", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: c,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(labelText: "시급 (원)", helperText: "2026년 최저시급 10,320원"),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(onPressed: () => Navigator.pop(context, int.tryParse(c.text)), child: const Text("저장")),
+            ]),
+          ),
         ),
       ),
     );
-    c.dispose();
     if (wage == null || wage <= 0 || !mounted) return;
     try {
       await OwnerApi().updateWage(r.employeeId, wage);

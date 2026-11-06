@@ -10,10 +10,13 @@ import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_back_button.dart';
 import '../../widgets/thyme_leaf.dart';
 import '../../widgets/thyme_worker_tab_bar.dart';
+import 'h12_absence_report_page.dart';
+import 'w09_shift_swap_page.dart';
 import 'w10_preference_report_page.dart';
 
 /// W07 나의 근무표 (근로자 하단 탭 '근무표'). GET /schedules/my (확정 근무) + 교대 이름(GET /shifts)
-/// 날짜를 누르면 그날 배정 사유(reasons)를 보여 준다. 열면 서버가 확정 근무표를 확인한 것으로 기록한다
+/// 날짜를 누르면 그날 배정 사유(reasons)를 보여 준다. 열면 서버가 확정 근무표를 확인한 것으로 기록한다.
+/// 아직 시작 전인 근무면 그 근무로 결원 신고(H12)·근무 바꾸기(W09)를 연다
 class MySchedulePage extends StatefulWidget {
   const MySchedulePage({super.key});
 
@@ -66,6 +69,15 @@ class _MySchedulePageState extends State<MySchedulePage> {
     if (d <= 0) d += 24 * 60;
     return d / 60;
   }
+
+  Future<void> _open(Widget page) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    if (mounted) _load(); // 결원·바꾸기 뒤 근무가 바뀌었을 수 있다
+  }
+
+  static bool _notStarted(MyShift s) => DateTime(s.workDate.year, s.workDate.month, s.workDate.day,
+          int.parse(s.startTime.substring(0, 2)), int.parse(s.startTime.substring(3, 5)))
+      .isAfter(DateTime.now());
 
   void _moveMonth(int delta) => setState(() {
         _month = DateTime(_month.year, _month.month + delta);
@@ -228,6 +240,22 @@ class _MySchedulePageState extends State<MySchedulePage> {
             padding: const EdgeInsets.only(bottom: 4),
             child: Text("· $r", style: const TextStyle(fontSize: 14, color: ThymeColor.charcoal, height: 1.5)),
           ),
+        if (s != null && _notStarted(s)) ...[
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => _open(AbsenceReportPage(
+                    shift: DaySchedule(date: s.workDate, scheduleId: s.id, shiftName: _shiftName(s), startTime: s.startTime, endTime: s.endTime))),
+                child: const Text("못 나가요"),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton(onPressed: () => _open(ShiftSwapPage(scheduleId: s.id)), child: const Text("근무 바꾸기")),
+            ),
+          ]),
+        ],
       ]),
     );
   }

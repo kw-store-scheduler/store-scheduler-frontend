@@ -30,6 +30,12 @@ class StoreApi {
     return current();
   }
 
+  /// 매장 이름·주소·업종 바꾸기. 주소는 보낸 값으로 덮어써서 안 바꿔도 지금 값을 같이 보낸다.
+  /// 업종은 빼면 그대로이고, 바꿔도 이미 만든 역량·교대는 그대로다 (표시만 바뀜)
+  Future<StoreInfo> updateInfo({required String name, String? address, String? industry}) async => StoreInfo.fromJson(
+      await _api.patch('/api/stores/${_session.requireStoreId()}', data: {'name': name, 'address': address, 'industry': ?industry})
+          as Map<String, dynamic>);
+
   /// 현재 매장 설정 (GET /api/stores 는 내 매장 목록이라 그중 현재 매장을 고른다)
   Future<StoreInfo> current() async {
     final id = _session.requireStoreId();
@@ -108,6 +114,13 @@ class StoreApi {
   /// O04: 매장 역량 목록 (업종 기본 역량 포함)
   Future<List<SkillInfo>> skills() async =>
       [for (final j in await _api.get('$_store/skills') as List) SkillInfo.fromJson(j as Map<String, dynamic>)];
+
+  /// O04: 매장 역량 추가 (업종 기본에 없는 것. 예: 일본어). 같은 이름이면 서버가 400
+  Future<SkillInfo> addSkill(String name) async =>
+      SkillInfo.fromJson(await _api.post('$_store/skills', data: {'name': name}) as Map<String, dynamic>);
+
+  /// O04: 매장 역량 삭제. 이 역량을 쓰는 시간대 조건·교대 조건·직원 등급도 서버가 같이 지운다
+  Future<void> deleteSkill(int id) => _api.delete('$_store/skills/$id');
 
   /// O04: 시간대별 필요 역량
   Future<List<SkillWindow>> skillWindows() async =>

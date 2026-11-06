@@ -106,6 +106,144 @@ class PreferenceStatus {
       );
 }
 
+/// 근무 시작 시각이 지났는데 그날 출근 기록이 없는 사람 (GET /attendance/absences?date=, 점주)
+/// 하루에 근무가 여럿이면 가장 이른 근무
+class AttendanceAbsence {
+  const AttendanceAbsence({required this.employeeId, required this.employeeName, required this.scheduledStart, required this.scheduledEnd});
+
+  final int employeeId;
+  final String employeeName;
+  final String scheduledStart;
+  final String scheduledEnd;
+
+  factory AttendanceAbsence.fromJson(Map<String, dynamic> j) => AttendanceAbsence(
+        employeeId: j['employeeId'] as int,
+        employeeName: j['employeeName'] as String? ?? '',
+        scheduledStart: j['scheduledStart'] as String,
+        scheduledEnd: j['scheduledEnd'] as String,
+      );
+}
+
+/// 출퇴근 기록 한 건 (GET /attendance?date= 점주, GET /attendance/my 근로자)
+/// scheduledStart·End 는 그날 근무표 시간(근무 없이 찍었으면 null), late = 근무 시작보다 늦게 출근
+class AttendanceRecord {
+  const AttendanceRecord({required this.id, required this.employeeId, required this.employeeName, required this.workDate, required this.clockIn, this.clockOut, this.scheduledStart, this.scheduledEnd, required this.late});
+
+  final int id;
+  final int employeeId;
+  final String employeeName;
+  final DateTime workDate;
+  final DateTime clockIn;
+  final DateTime? clockOut;
+  final String? scheduledStart;
+  final String? scheduledEnd;
+  final bool late;
+
+  /// 근무 끝난 지 지났는데 퇴근을 안 찍음 (근무표가 없으면 그날이 지났는지로 본다)
+  bool missingClockOut(DateTime now) {
+    if (clockOut != null) return false;
+    final end = scheduledEnd;
+    if (end == null) return now.isAfter(workDate.add(const Duration(days: 1)));
+    var endAt = workDate.add(Duration(hours: int.parse(end.substring(0, 2)), minutes: int.parse(end.substring(3, 5))));
+    if (scheduledStart != null && end.compareTo(scheduledStart!) <= 0) endAt = endAt.add(const Duration(days: 1)); // 자정 넘는 근무
+    return now.isAfter(endAt);
+  }
+
+  factory AttendanceRecord.fromJson(Map<String, dynamic> j) => AttendanceRecord(
+        id: j['id'] as int,
+        employeeId: j['employeeId'] as int,
+        employeeName: j['employeeName'] as String? ?? '',
+        workDate: DateTime.parse(j['workDate'] as String),
+        clockIn: DateTime.parse(j['clockIn'] as String),
+        clockOut: _date(j['clockOut']),
+        scheduledStart: j['scheduledStart'] as String?,
+        scheduledEnd: j['scheduledEnd'] as String?,
+        late: j['late'] as bool? ?? false,
+      );
+}
+
+/// 마감 보고로 본 요일·교대별 필요 인원 제안 (GET /staffing-suggestions?month=)
+/// suggestedStaff 가 null 이면 보고가 모자라 제안 못 함 (reason 에 이유)
+class StaffingSuggestion {
+  const StaffingSuggestion({required this.shiftName, required this.weekday, required this.sampleDays, this.averageCustomers, required this.currentRequiredStaff, this.suggestedStaff, this.reason});
+
+  final String shiftName;
+
+  /// 0 = 월 … 6 = 일
+  final int weekday;
+  final int sampleDays;
+  final double? averageCustomers;
+  final int currentRequiredStaff;
+  final int? suggestedStaff;
+  final String? reason;
+
+  bool get changes => suggestedStaff != null && suggestedStaff != currentRequiredStaff;
+
+  factory StaffingSuggestion.fromJson(Map<String, dynamic> j) => StaffingSuggestion(
+        shiftName: j['shiftName'] as String? ?? '',
+        weekday: weekdayNames.indexOf(j['dayOfWeek'] as String),
+        sampleDays: (j['sampleDays'] as num?)?.toInt() ?? 0,
+        averageCustomers: (j['averageCustomers'] as num?)?.toDouble(),
+        currentRequiredStaff: (j['currentRequiredStaff'] as num?)?.toInt() ?? 0,
+        suggestedStaff: (j['suggestedStaff'] as num?)?.toInt(),
+        reason: j['reason'] as String?,
+      );
+}
+
+class StaffingSuggestions {
+  const StaffingSuggestions({required this.from, required this.to, required this.customersPerStaff, required this.items});
+
+  final DateTime from;
+  final DateTime to;
+  final int customersPerStaff;
+  final List<StaffingSuggestion> items;
+
+  factory StaffingSuggestions.fromJson(Map<String, dynamic> j) => StaffingSuggestions(
+        from: DateTime.parse(j['basedOnFrom'] as String),
+        to: DateTime.parse(j['basedOnTo'] as String),
+        customersPerStaff: (j['customersPerStaff'] as num?)?.toInt() ?? 0,
+        items: [for (final s in j['suggestions'] as List? ?? const []) StaffingSuggestion.fromJson(s as Map<String, dynamic>)],
+      );
+}
+
+/// 직원별 희망 제출 현황 한 줄 (GET /preferences?month=, M01)
+/// contractExceedStatus = 계약 상한을 넘겨 신청했을 때만 PENDING·APPROVED·REJECTED (넘기지 않았으면 null).
+/// needsContractApproval 은 PENDING 일 때만 true
+class PreferenceSubmissionRow {
+  const PreferenceSubmissionRow({
+    required this.employeeId,
+    required this.name,
+    required this.submitted,
+    required this.late,
+    required this.needsContractApproval,
+    this.contractExceedStatus,
+    this.requestedMaxMonthlyHours,
+    this.contractMaxMonthlyHours,
+  });
+
+  final int employeeId;
+  final String name;
+  final bool submitted;
+  final bool late;
+  final bool needsContractApproval;
+  final String? contractExceedStatus;
+
+  /// 이번 달 신청한 최대 시간, 계약 상한을 그 달 시간으로 바꾼 값
+  final int? requestedMaxMonthlyHours;
+  final int? contractMaxMonthlyHours;
+
+  factory PreferenceSubmissionRow.fromJson(Map<String, dynamic> j) => PreferenceSubmissionRow(
+        employeeId: j['employeeId'] as int,
+        name: j['name'] as String? ?? '',
+        submitted: j['submitted'] as bool? ?? false,
+        late: j['late'] as bool? ?? false,
+        needsContractApproval: j['needsContractApproval'] as bool? ?? false,
+        contractExceedStatus: j['contractExceedStatus'] as String?,
+        requestedMaxMonthlyHours: (j['requestedMaxMonthlyHours'] as num?)?.toInt(),
+        contractMaxMonthlyHours: (j['contractMaxMonthlyHours'] as num?)?.toInt(),
+      );
+}
+
 /// GET /api/stores/{storeId}/home/owner (P01)
 class OwnerHome {
   const OwnerHome({
@@ -115,6 +253,8 @@ class OwnerHome {
     required this.employeeCount,
     required this.pendingApprovals,
     required this.pendingLeaves,
+    this.pendingTrades = 0,
+    this.pendingContractApprovals = 0,
     required this.vacancies,
     required this.todayShifts,
     required this.preferences,
@@ -126,6 +266,12 @@ class OwnerHome {
   final int employeeCount;
   final int pendingApprovals;
   final int pendingLeaves;
+
+  /// 동료가 수락해서 사장님 승인만 남은 근무 바꾸기 (P06)
+  final int pendingTrades;
+
+  /// 계약 상한을 넘겨 신청해 결정 전인 희망 (M01, pendingApprovals 에는 안 들어 있다)
+  final int pendingContractApprovals;
   final List<Vacancy> vacancies;
   final List<ShiftStatus> todayShifts;
   final PreferenceStatus preferences;
@@ -140,6 +286,8 @@ class OwnerHome {
         employeeCount: (j['employeeCount'] as num).toInt(),
         pendingApprovals: (j['pendingApprovals'] as num).toInt(),
         pendingLeaves: (j['pendingLeaves'] as num?)?.toInt() ?? 0,
+        pendingTrades: (j['pendingTrades'] as num?)?.toInt() ?? 0,
+        pendingContractApprovals: (j['pendingContractApprovals'] as num?)?.toInt() ?? 0,
         vacancies: [for (final v in j['activeVacancies'] as List? ?? []) Vacancy.fromJson(v as Map<String, dynamic>)],
         todayShifts: [for (final s in j['todayShifts'] as List? ?? []) ShiftStatus.fromJson(s as Map<String, dynamic>)],
         preferences: PreferenceStatus.fromJson(j['nextMonthPreferences'] as Map<String, dynamic>),

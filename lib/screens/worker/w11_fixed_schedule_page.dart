@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/api_service.dart';
+import '../../core/owner_api.dart';
 import '../../core/preference_api.dart';
 import '../../core/theme.dart';
 import '../../models/preference.dart';
@@ -33,10 +34,14 @@ class _Group {
 /// - 서버: GET/PUT /fixed-schedules/my (요일마다 한 건, 통째로 교체) · GET/PUT /unavailable-periods/my (이번 달만 예외 기간)
 /// - 고정 일정과 겹치는 W02 칸은 서버가 잠근다 → 저장한 뒤 그달 칸을 다시 받아 초안에 반영한다
 /// - [draft]가 없으면 내 정보에서 온 것 → '저장' 후 돌아간다
+/// - [employeeId]가 있으면 점주가 P11 에서 직원 대신 보고 고친다 (GET/PUT /employees/{id}/fixed-schedules).
+///   '이번 달만 예외'는 점주용 API 가 없어 숨긴다
 class FixedSchedulePage extends StatefulWidget {
-  const FixedSchedulePage({super.key, this.draft});
+  const FixedSchedulePage({super.key, this.draft, this.employeeId, this.employeeName});
 
   final PreferenceDraft? draft;
+  final int? employeeId;
+  final String? employeeName;
 
   @override
   State<FixedSchedulePage> createState() => _FixedSchedulePageState();
@@ -47,6 +52,8 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
   List<UnavailablePeriod> _periods = [];
   String? _error;
   bool _saving = false;
+
+  bool get _byOwner => widget.employeeId != null;
 
   static TimeOfDay _tod(String t) => TimeOfDay(hour: int.parse(t.substring(0, 2)), minute: int.parse(t.substring(3, 5)));
   static String _hm(TimeOfDay t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
@@ -62,8 +69,8 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
     setState(() => _error = null);
     try {
       final api = PreferenceApi();
-      final list = await api.fixedSchedules();
-      final periods = await api.unavailablePeriods();
+      final list = _byOwner ? await OwnerApi().fixedSchedules(widget.employeeId!) : await api.fixedSchedules();
+      final periods = _byOwner ? <UnavailablePeriod>[] : await api.unavailablePeriods();
       final groups = <String, _Group>{};
       for (final f in list) {
         final key = [f.label, f.category.name, f.startTime, f.endTime, f.validFrom, f.validUntil].join('|');
@@ -161,7 +168,7 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
     setState(() => _saving = true);
     try {
       final api = PreferenceApi();
-      await api.replaceFixedSchedules([
+      final list = [
         for (final g in groups)
           for (final d in g.days.toList()..sort())
             FixedSchedule(
@@ -173,7 +180,15 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
               validFrom: g.validFrom,
               validUntil: g.validUntil,
             ),
-      ]);
+      ];
+      if (_byOwner) {
+        await OwnerApi().replaceFixedSchedules(widget.employeeId!, list);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${widget.employeeName ?? '직원'}님 고정 일정을 저장했어요")));
+        Navigator.maybePop(context);
+        return;
+      }
+      await api.replaceFixedSchedules(list);
       await api.replaceUnavailablePeriods(_periods);
       final draft = widget.draft;
       if (draft == null) {
@@ -199,16 +214,24 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
     return Scaffold(
       backgroundColor: ThymeColor.bg,
       appBar: widget.draft == null
-          ? AppBar(backgroundColor: ThymeColor.bg, title: const Text("고정 일정", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), centerTitle: true)
+          ? AppBar(
+              backgroundColor: ThymeColor.bg,
+              title: Text(_byOwner ? "${widget.employeeName ?? '직원'}님 고정 일정" : "고정 일정", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              centerTitle: true,
+            )
           : const ThymeStepAppBar(step: 2, total: 7, title: '언제 · 고정 일정'),
       body: SafeArea(
         child: Column(children: [
           Expanded(
             child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 24), children: [
-              const Text("매주 반복되는 일정이 있나요?", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+              Text(_byOwner ? "매주 못 나오는 시간" : "매주 반복되는 일정이 있나요?",
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: ThymeColor.text)),
               const SizedBox(height: 8),
-              const Text("학교, 다른 직장, 돌봄처럼 매주 같은 시간에 못 나오는 일정이에요. 기간이 끝나면 자동으로 풀려요.",
-                  style: TextStyle(fontSize: 15, color: ThymeColor.textSub, height: 1.5)),
+              Text(
+                  _byOwner
+                      ? "직원이 직접 낸 일정이에요. 대신 고치면 그대로 근무표 만들 때 빠지는 시간이 돼요."
+                      : "학교, 다른 직장, 돌봄처럼 매주 같은 시간에 못 나오는 일정이에요. 기간이 끝나면 자동으로 풀려요.",
+                  style: const TextStyle(fontSize: 15, color: ThymeColor.textSub, height: 1.5)),
               const SizedBox(height: 20),
               if (_error != null) ...[
                 Text(_error!, style: const TextStyle(color: ThymeColor.dangerText)),
@@ -233,8 +256,10 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
                     ),
                   ],
                 ]),
-                const SizedBox(height: 16),
-                _periodCard(),
+                if (!_byOwner) ...[
+                  const SizedBox(height: 16),
+                  _periodCard(),
+                ],
               ],
             ]),
           ),

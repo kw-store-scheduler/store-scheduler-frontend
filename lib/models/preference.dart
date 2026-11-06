@@ -95,6 +95,10 @@ class PreferenceMonth {
   final List<PreferenceCell> cells;
   final Map<String, dynamic>? submission;
 
+  /// 지난번에 낸 최대 시간이 계약 상한을 넘었을 때만 PENDING·APPROVED·REJECTED (사장님 결정)
+  String? get contractExceedStatus => submission?['contractExceedStatus'] as String?;
+  int? get submittedMaxMonthlyHours => (submission?['maxMonthlyHours'] as num?)?.toInt();
+
   factory PreferenceMonth.fromJson(Map<String, dynamic> j) => PreferenceMonth(
         month: j['month'] as String,
         deadline: j['deadline'] == null ? null : DateTime.parse(j['deadline'] as String),
@@ -123,6 +127,9 @@ class PreferenceDraft {
 
   /// 지난달 답을 실제로 불러왔는지 (첫 달이면 불러올 답이 없다)
   bool loadedPrevious = false;
+
+  /// 그달에 이미 낸 값을 불러와 고치는 중인지 ('고치기')
+  bool loadedMine = false;
 
   /// W02: (날짜, 교대 id) → 가능/선호. 없는 칸은 불가
   final Map<(DateTime, int), PreferenceLevel> slots = {};

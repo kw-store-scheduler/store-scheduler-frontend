@@ -4,6 +4,7 @@ import '../../core/owner_api.dart';
 import '../../core/theme.dart';
 import '../../models/owner.dart';
 import '../../models/store.dart' show hhmm;
+import '../../models/worker.dart' show Trade;
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_leaf.dart';
 import '../../widgets/thyme_owner_header.dart';
@@ -12,6 +13,7 @@ import 'p09_open_shift_post_page.dart';
 
 /// P06 대타 관리 (점주 하단 탭 '대타'). 진행 중인 결원(GET /swap-requests)과 엔진이 고른 후보(GET /candidates)
 /// → 고른 동료에게 요청 · 가능한 모두에게 요청 · 직접 배정 · 빈 근무로 올리기 · 직원끼리 구한 대타 승인
+/// 아래에 직원끼리 한 근무 바꾸기(넘기기·맞교환, GET /trades) 승인·거절
 class SubstituteManagePage extends StatefulWidget {
   const SubstituteManagePage({super.key, this.requestId});
 
@@ -26,6 +28,9 @@ class _SubstituteManagePageState extends State<SubstituteManagePage> {
   List<SwapRequestInfo>? _requests;
   SwapRequestInfo? _current;
   List<SwapCandidate>? _candidates;
+
+  /// 진행 중인 근무 바꾸기. 못 받아도 결원 화면은 보여 준다
+  List<Trade> _trades = const [];
   final Set<int> _picked = {};
   String? _error;
   bool _busy = false;
@@ -42,7 +47,10 @@ class _SubstituteManagePageState extends State<SubstituteManagePage> {
     setState(() => _error = null);
     try {
       final list = await OwnerApi().swapRequests();
+      final trades = await OwnerApi().trades().catchError((_) => <Trade>[]);
       if (!mounted) return;
+      // 승인할 수 있는 것(동료 수락)을 위로
+      _trades = [...trades.where((t) => t.status == 'PEER_ACCEPTED'), ...trades.where((t) => t.status != 'PEER_ACCEPTED')];
       final active = [for (final r in list) if (r.active) r]..sort((a, b) => a.workDate.compareTo(b.workDate));
       final keep = _current?.id ?? widget.requestId;
       setState(() {
@@ -152,6 +160,16 @@ class _SubstituteManagePageState extends State<SubstituteManagePage> {
                           _approvalCard(r)
                         else
                           ..._candidateSection(r),
+                        if (_trades.isNotEmpty) ...[
+                          const SizedBox(height: 24),
+                          Row(children: [
+                            const Expanded(child: Text("근무 바꾸기 요청", style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: ThymeColor.text))),
+                            Text("승인 대기 ${_trades.where((t) => t.status == 'PEER_ACCEPTED').length}건",
+                                style: const TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+                          ]),
+                          const SizedBox(height: 10),
+                          for (final t in _trades) _tradeCard(t),
+                        ],
                         if (done.isNotEmpty) ...[
                           const SizedBox(height: 24),
                           const Text("이번 달 처리한 결원", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.textSub)),
@@ -237,6 +255,52 @@ class _SubstituteManagePageState extends State<SubstituteManagePage> {
           ]),
         ]),
       );
+
+  /// 직원끼리 근무 바꾸기 한 건. 동료가 수락했으면 승인·거절, 동료 응답 전이면 거절만
+  Widget _tradeCard(Trade t) {
+    final peerAccepted = t.status == 'PEER_ACCEPTED';
+    String shift(DateTime? d, String? s, String? e) => d == null || s == null || e == null ? "" : "${mdw(d)} ${hourRange(s, e)}시";
+    final what = t.exchange
+        ? "${t.requesterName} ${shift(t.requesterDate, t.requesterStart, t.requesterEnd)} ↔ ${t.targetName} ${shift(t.targetDate, t.targetStart, t.targetEnd)}"
+        : "${t.requesterName} → ${t.targetName} · ${shift(t.requesterDate, t.requesterStart, t.requesterEnd)}";
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(color: ThymeColor.surface, borderRadius: BorderRadius.circular(20)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Text(t.exchange ? "맞교환" : "넘기기", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ThymeColor.textSub)),
+          if (t.recurring) const Text(" · 매주 반복", style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+          const Spacer(),
+          Icon(Icons.circle, size: 8, color: peerAccepted ? ThymeColor.warn : ThymeColor.info),
+          const SizedBox(width: 4),
+          Text(t.statusLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+        ]),
+        const SizedBox(height: 6),
+        Text(what, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+        if (t.recurring) ...[
+          const SizedBox(height: 4),
+          const Text("승인하면 그달 남은 같은 요일·시간 근무도 함께 바뀌어요.", style: TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+        ],
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: _busy ? null : () => _run((api) => api.rejectTrade(t.id), "근무 바꾸기를 거절했어요"),
+              child: const Text("거절"),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: FilledButton(
+              onPressed: _busy || !peerAccepted ? null : () => _run((api) => api.approveTrade(t.id), "승인했어요. 근무표가 바뀌었어요"),
+              child: Text(peerAccepted ? "승인" : "동료 응답 대기"),
+            ),
+          ),
+        ]),
+      ]),
+    );
+  }
 
   List<Widget> _candidateSection(SwapRequestInfo r) {
     final cands = _candidates;

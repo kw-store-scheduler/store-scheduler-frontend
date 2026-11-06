@@ -14,10 +14,11 @@ import '../common/a03_login_page.dart'; // 로그아웃
 import 'j01_store_code_page.dart'; // 다른 매장 추가
 import 'w10_preference_report_page.dart'; // 희망 반영 리포트
 import 'w11_fixed_schedule_page.dart'; // 고정 일정
+import 'worker_attendance_page.dart'; // 근무 기록
 
 /// H06 내 정보 (근로자 하단 탭). GET /me/summary
 /// 프로필(고용 형태·입사일·시급), 이번 달 근무일·누적 시간·지금까지 급여, 내 매장, 메뉴, 로그아웃
-/// 서버에 화면이 없는 메뉴(근무 기록·서류함·고객센터)는 회색 '준비 중'으로 둔다
+/// 서버에 화면이 없는 메뉴(서류함·고객센터)는 회색 '준비 중'으로 둔다
 class MyInfoPage extends StatefulWidget {
   const MyInfoPage({super.key});
 
@@ -114,7 +115,7 @@ class _MyInfoPageState extends State<MyInfoPage> {
               ]),
               const SizedBox(height: 12),
               _card([
-                _menu("근무 기록 · 정정", null),
+                _menu("근무 기록", () => _open(const WorkerAttendancePage())),
                 _menu("서류함 · 임금명세서", null),
                 // 고정 일정 화면은 희망 신청 흐름(W11)을 그대로 쓴다
                 _menu("고정 일정", () => _open(const FixedSchedulePage()), trailing: s.fixedScheduleCount == 0 ? "없음" : "${s.fixedScheduleCount}건"),

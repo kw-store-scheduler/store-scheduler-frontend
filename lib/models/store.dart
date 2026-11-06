@@ -74,6 +74,7 @@ class StoreInfo {
   const StoreInfo({
     required this.id,
     required this.name,
+    this.address,
     required this.storeCode,
     required this.industry,
     required this.allowSplitShift,
@@ -88,6 +89,7 @@ class StoreInfo {
 
   final int id;
   final String name;
+  final String? address;
   final String storeCode;
   final String? industry;
   final bool allowSplitShift;
@@ -102,6 +104,7 @@ class StoreInfo {
   factory StoreInfo.fromJson(Map<String, dynamic> j) => StoreInfo(
         id: j['id'] as int,
         name: j['name'] as String,
+        address: j['address'] as String?,
         storeCode: j['storeCode'] as String,
         industry: j['industry'] as String?,
         allowSplitShift: j['allowSplitShift'] as bool? ?? false,
