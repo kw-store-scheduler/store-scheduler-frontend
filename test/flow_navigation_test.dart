@@ -123,11 +123,8 @@ void main() {
     await tap(tester, '점주 · 매니저');
     await tap(tester, '매장 등록하기');
     onTop(StoreRegistrationPage);
-    // 매장 등록 첫 화면은 시안대로 왼쪽 위가 로고라 화면 안 뒤로가기가 없다 → 휴대폰 뒤로가기로
-    // ignore: invalid_use_of_protected_member
-    await tester.binding.handlePopRoute();
-    await settle(tester);
-    onTop(RoleSelectionPage, '휴대폰 뒤로가기 후');
+    // 매장 등록 첫 화면: 아래에 A06 이 있으니 로고 앞에 ← 가 있다
+    await back(tester, RoleSelectionPage);
     await tap(tester, '근로자');
     await tap(tester, '매장 코드 입력하기');
     onTop(StoreCodePage);
@@ -184,6 +181,7 @@ void main() {
     server.routes['GET $_store/skill-matrix'] = (_) => [];
 
     await pumpScreen(tester, const StoreRegistrationPage());
+    expect(find.byIcon(Icons.arrow_back_ios).hitTestable(), findsNothing, reason: '첫 화면으로 열린 O01 은 시안대로 로고만');
     await tester.enterText(find.byType(TextField).first, '구시대 커피');
     await settle(tester);
     await tap(tester, '다음');

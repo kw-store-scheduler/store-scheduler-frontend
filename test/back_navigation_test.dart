@@ -129,10 +129,9 @@ final _pushed = <String, Widget Function()>{
   '근로자 근무 기록': () => const WorkerAttendancePage(),
 };
 
-/// 화면 안 뒤로가기가 없는 곳 (시안대로 왼쪽 위가 비어 있거나 로고). 휴대폰·브라우저 뒤로가기는 된다
-/// - A03: A02 '시작하기'로 열리는데 시안에 뒤로가기가 없다
-/// - O01: A06 과 점주 매장 고르기 '매장 추가'로 열리는데 왼쪽 위가 로고라, iOS 처럼 뒤로가기 키가 없으면 돌아갈 버튼이 없다
-const _noBackButton = {'A03 로그인', 'O01 매장 등록'};
+/// 화면 안 뒤로가기가 없는 곳 (휴대폰·브라우저 뒤로가기는 된다)
+/// - A03: A02 '시작하기'로 열리는데 시안에 없고, 안에서 로그인↔가입을 바꿀 수 있어 A02 로 돌아갈 일이 거의 없다
+const _noBackButton = {'A03 로그인'};
 
 const _backIcons = [Icons.arrow_back_ios, Icons.close, Icons.arrow_back];
 
