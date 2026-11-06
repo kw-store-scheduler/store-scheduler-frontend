@@ -9,6 +9,14 @@ import 'package:thyme_frontend/screens/worker/w00_load_last_month_page.dart';
 import 'package:thyme_frontend/screens/worker/h01_part_timer_home_page.dart';
 import 'package:thyme_frontend/screens/worker/w06_work_hours_page.dart';
 import 'package:thyme_frontend/models/preference.dart';
+import 'package:flutter/material.dart';
+import 'package:thyme_frontend/screens/worker/e01_employee_leave_page.dart';
+import 'package:thyme_frontend/screens/worker/w02_date_shift_page.dart';
+import 'package:thyme_frontend/screens/worker/w03_rest_day_preference_page.dart';
+import 'package:thyme_frontend/screens/worker/w04_shift_attitude_page.dart';
+import 'package:thyme_frontend/screens/worker/w05_skills_page.dart';
+import 'package:thyme_frontend/screens/worker/w11_fixed_schedule_page.dart';
+import 'package:thyme_frontend/screens/worker/w14_preference_submit_page.dart';
 
 import 'test_helpers.dart';
 
@@ -102,6 +110,8 @@ class _FakeServer implements HttpClientAdapter {
             'probationUntil': '2026-11-30',
           },
         ('PUT', '/api/stores/7/my-skills') => {'skills': [], 'permissions': []},
+        // 직원 E01: 남은 연차
+        ('GET', '/api/stores/7/preferences/my/leave-plan') => {'remaining': 8, 'maxUse': 2, 'minRemaining': 0},
         // 이미 낸 휴무 2건 (필수 1 · 희망 1, 대안 순서 있음) → W03 카드가 그려진다
         ('GET', '/api/stores/7/day-offs/my') => [
             {'id': 1, 'date': '2026-11-07', 'type': 'MUST', 'reason': '가족 행사', 'fallbacks': [], 'downgraded': false},
@@ -238,6 +248,52 @@ void main() {
     await tapNext(tester, '시작하기');
     await tapNext(tester, '다음'); // W11 → W02
     expect(find.text('선호'), findsNWidgets(2)); // 이번 달에 낸 칸 1 + 범례 1 (지난달 2칸이 아님)
+  });
+
+  /// 화면 안 뒤로가기(←) 를 누르고, 바로 앞 단계 화면이 맨 위에 있는지
+  Future<void> back(WidgetTester tester, Type expected) async {
+    await tester.tap(find.byIcon(Icons.arrow_back_ios).hitTestable().first);
+    await settle(tester);
+    final top = find.byWidgetPredicate((w) => w.runtimeType == expected).hitTestable();
+    expect(top, findsOneWidget, reason: '뒤로가기 후 $expected 가 보여야 함');
+  }
+
+  testWidgets('알바 W00→W11→W02→W03→W06→W05→W14 를 다음으로 가고, 뒤로가기로 한 단계씩 W00 까지 돌아온다', (tester) async {
+    await tester.runAsync(() => Session.instance.login('staff01', 'pw'));
+    await pumpScreen(tester, LoadLastMonthPage(month: DateTime(2026, 11)));
+    await tapNext(tester, '시작하기');
+    expect(find.byType(FixedSchedulePage), findsOneWidget);
+    await tapNext(tester, '다음');
+    expect(find.byType(DateShiftPage), findsOneWidget);
+    await tapNext(tester, '다음');
+    expect(find.byType(RestDayPreferencePage), findsOneWidget);
+    await tapNext(tester, '다음');
+    expect(find.byType(WorkHoursPage), findsOneWidget);
+    await tapNext(tester, '다음');
+    expect(find.byType(SkillsPage), findsOneWidget);
+    await tapNext(tester, '다음');
+    await tester.pump(const Duration(seconds: 5)); // 스낵바
+    await tester.pumpAndSettle();
+    expect(find.byType(PreferenceSubmitPage), findsOneWidget);
+
+    await back(tester, SkillsPage);
+    await back(tester, WorkHoursPage);
+    await back(tester, RestDayPreferencePage);
+    await back(tester, DateShiftPage);
+    await back(tester, FixedSchedulePage);
+    await back(tester, LoadLastMonthPage);
+  });
+
+  testWidgets('직원 E01→W04→W14 를 다음으로 가고, 뒤로가기로 E01 까지 돌아온다', (tester) async {
+    await tester.runAsync(() => Session.instance.login('staff01', 'pw'));
+    await pumpScreen(tester, const EmployeeLeavePage());
+    await tapNext(tester, '다음 · 선호 시간대');
+    expect(find.byType(ShiftAttitudePage), findsOneWidget);
+    await tapNext(tester, '다음 · 우선순위');
+    expect(find.byType(PreferenceSubmitPage), findsOneWidget);
+
+    await back(tester, ShiftAttitudePage);
+    await back(tester, EmployeeLeavePage);
   });
 
   group('W06 계약 초과: 같은 최대 시간으로 이미 냈으면 사장님 결정을 보여 준다', () {
