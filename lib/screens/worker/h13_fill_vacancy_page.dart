@@ -215,9 +215,12 @@ class _FillVacancyPageState extends State<FillVacancyPage> {
   Widget _progress(List<SwapCandidate> cands) {
     final waiting = cands.where((c) => c.contactStatus == 'SENT').toList();
     final accepted = cands.where((c) => c.contactStatus == 'PENDING_APPROVAL' || c.contactStatus == 'ACCEPTED').firstOrNull;
-    final (bg, fg, text) = accepted != null
-        ? (ThymeColor.successBg, ThymeColor.successText,
-            accepted.contactStatus == 'PENDING_APPROVAL' ? "${accepted.name}님이 수락했어요. 사장님이 승인하면 확정돼요" : "${accepted.name}님으로 대타가 정해졌어요")
+    // ACCEPTED 는 사장님이 승인한 뒤에도, 승인하지 않아 요청이 다시 열린 뒤에도 남는다 (서버가 요청 상태를 신고자에게 안 줌)
+    // → 확정이라고 단정하지 않고 결과는 알림으로
+    final (bg, fg, text) = accepted?.contactStatus == 'PENDING_APPROVAL'
+        ? (ThymeColor.infoBg, ThymeColor.infoText, "${accepted!.name}님이 수락했어요. 사장님 승인 대기 중이에요")
+        : accepted != null
+        ? (ThymeColor.successBg, ThymeColor.successText, "${accepted.name}님이 수락했어요. 사장님 결정은 알림으로 알려 드려요")
         : waiting.isNotEmpty
             ? (ThymeColor.infoBg, ThymeColor.infoText, "${waiting.length}명이 확인 중이에요. 먼저 수락한 한 명으로 정해져요")
             : (ThymeColor.warnBg, ThymeColor.warnText, "아직 받은 사람이 없어요. 다른 동료에게 더 보내거나 게시판에 올려 보세요");
@@ -242,7 +245,7 @@ class _FillVacancyPageState extends State<FillVacancyPage> {
         null => null,
         'SENT' => (ThymeColor.infoText, c.waitingMinutes == null ? "확인 중" : "확인 중 ${c.waitingMinutes}분"),
         'ACCEPTED' => (ThymeColor.successText, "수락"),
-        'PENDING_APPROVAL' => (ThymeColor.successText, "수락 · 승인 대기"),
+        'PENDING_APPROVAL' => (ThymeColor.infoText, "수락 · 승인 대기 중"),
         'DECLINED' => (ThymeColor.textSub, "거절"),
         'EXPIRED' => (ThymeColor.dangerText, "응답 없음"),
         'CLOSED' => (ThymeColor.textSub, "마감"),
