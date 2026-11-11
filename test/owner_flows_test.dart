@@ -614,9 +614,15 @@ void main() {
     // 하준이 수락 → 새로고침하면 사장님 승인 대기
     cands = [cand(4, '하준', status: 'PENDING_APPROVAL'), cand(5, '민지', status: 'CLOSED'), cand(6, '도윤')];
     await tapText(tester, '새로고침');
-    expect(find.text('하준님이 수락했어요. 사장님이 승인하면 확정돼요'), findsOneWidget);
-    expect(find.text('수락 · 승인 대기'), findsOneWidget);
+    expect(find.text('하준님이 수락했어요. 사장님 승인 대기 중이에요'), findsOneWidget);
+    expect(find.text('수락 · 승인 대기 중'), findsOneWidget);
     expect(find.text('마감'), findsOneWidget);
+
+    // 사장님이 결정한 뒤 (승인이든 미승인이든 서버는 ACCEPTED 로 줌) → 확정이라고 단정하지 않는다
+    cands = [cand(4, '하준', status: 'ACCEPTED'), cand(5, '민지', status: 'CLOSED'), cand(6, '도윤')];
+    await tapText(tester, '새로고침');
+    expect(find.text('하준님이 수락했어요. 사장님 결정은 알림으로 알려 드려요'), findsOneWidget);
+    expect(find.textContaining('정해졌어요'), findsNothing);
   });
 
   testWidgets('W07 시작 전 근무를 누르면 그 근무로 결원 신고(H12)·근무 바꾸기(W09)를 연다', (tester) async {
