@@ -52,6 +52,11 @@ class FixedSchedulePage extends StatefulWidget {
 class _FixedSchedulePageState extends State<FixedSchedulePage> {
   List<_Group>? _groups;
   List<UnavailablePeriod> _periods = [];
+
+  // 평소 일할 수 있는 시간: 요일(0=월) → (시작 분, 끝 분). 끝 1440 = 자정까지 (서버엔 23:59)
+  List<WeeklyAvailability> _availBefore = [];
+  final Map<int, (int, int)> _avail = {};
+  int? _lastAvailDay;
   String? _error;
   bool _saving = false;
 
@@ -59,6 +64,8 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
 
   static TimeOfDay _tod(String t) => TimeOfDay(hour: int.parse(t.substring(0, 2)), minute: int.parse(t.substring(3, 5)));
   static String _hm(TimeOfDay t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  static int _min(String t) => int.parse(t.substring(0, 2)) * 60 + int.parse(t.substring(3, 5));
+  static String _hmm(int m) => m >= 1440 ? '24:00' : '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
   static String _md(DateTime d) => '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
 
   @override
@@ -73,6 +80,15 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
       final api = PreferenceApi();
       final list = _byOwner ? await OwnerApi().fixedSchedules(widget.employeeId!) : await api.fixedSchedules();
       final periods = _byOwner ? <UnavailablePeriod>[] : await api.unavailablePeriods();
+      // 점주용 API 는 없어서 본인만. 못 불러와도 고정 일정은 고칠 수 있게 둔다
+      var avail = <WeeklyAvailability>[];
+      if (!_byOwner) {
+        try {
+          avail = await api.myAvailabilities();
+        } on ApiException {
+          avail = [];
+        }
+      }
       final groups = <String, _Group>{};
       for (final f in list) {
         final key = [f.label, f.category.name, f.startTime, f.endTime, f.validFrom, f.validUntil].join('|');
@@ -85,6 +101,10 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
       setState(() {
         _groups = groups.values.toList();
         _periods = periods;
+        _availBefore = avail;
+        _avail
+          ..clear()
+          ..addAll({for (final a in avail) a.weekday: (_min(a.startTime), a.untilMidnight ? 1440 : _min(a.endTime))});
       });
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -190,6 +210,16 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
       }
       await api.replaceFixedSchedules(list);
       await api.replaceUnavailablePeriods(_periods);
+      final avail = {
+        for (final e in _avail.entries)
+          e.key: WeeklyAvailability(weekday: e.key, startTime: _hmm(e.value.$1), endTime: e.value.$2 >= 1440 ? '23:59' : _hmm(e.value.$2)),
+      };
+      final changed = avail.length != _availBefore.length ||
+          _availBefore.any((b) => avail[b.weekday]?.startTime != b.startTime || avail[b.weekday]?.endTime != b.endTime);
+      if (changed) {
+        await api.syncAvailabilities(_availBefore, avail);
+        _availBefore = await api.myAvailabilities();
+      }
       final draft = widget.draft;
       if (draft == null) {
         if (!mounted) return;
@@ -259,6 +289,8 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
                 if (!_byOwner) ...[
                   const SizedBox(height: 16),
                   _periodCard(),
+                  const SizedBox(height: 16),
+                  _availCard(),
                 ],
               ],
             ]),
@@ -367,6 +399,85 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
             ),
           ),
         ]),
+      ]),
+    );
+  }
+
+  /// 요일 하나의 일할 수 있는 시간 고르기. 끝을 00:00 으로 고르면 자정까지(밤샘 교대 가능)
+  Future<void> _editAvail(int day) async {
+    final cur = _avail[day] ?? (_lastAvailDay == null ? (9 * 60, 18 * 60) : _avail[_lastAvailDay]!);
+    TimeOfDay t(int m) => TimeOfDay(hour: (m ~/ 60) % 24, minute: m % 60);
+    final r = await showThymeTimeRangePicker(context,
+        start: t(cur.$1), end: t(cur.$2), title: "${weekdayLabels[day]}요일 일할 수 있는 시간", minuteStep: 30);
+    if (r == null || !mounted) return;
+    final s = r.$1.hour * 60 + r.$1.minute;
+    var e = r.$2.hour * 60 + r.$2.minute;
+    if (e == 0) e = 1440;
+    if (e <= s) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("끝이 시작보다 늦어야 해요. 밤새 가능하면 끝을 00:00 으로 골라 주세요")));
+      return;
+    }
+    setState(() {
+      _avail[day] = (s, e);
+      _lastAvailDay = day;
+    });
+  }
+
+  Widget _availCard() {
+    final last = _lastAvailDay == null ? null : _avail[_lastAvailDay];
+    final empty = [for (var d = 0; d < 7; d++) if (!_avail.containsKey(d)) d];
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 14, 8, 10),
+      decoration: BoxDecoration(color: ThymeColor.surface, borderRadius: BorderRadius.circular(22)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text("평소 일할 수 있는 시간 (선택)", style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+        const SizedBox(height: 2),
+        const Padding(
+          padding: EdgeInsets.only(right: 10),
+          child: Text("희망 신청을 깜빡한 달에도 이 시간으로 근무가 잡혀요. 희망을 내면 희망이 먼저예요.",
+              style: TextStyle(fontSize: 13, color: ThymeColor.textSub, height: 1.4)),
+        ),
+        const SizedBox(height: 6),
+        for (var d = 0; d < 7; d++)
+          Row(children: [
+            SizedBox(
+              width: 28,
+              child: Text(weekdayLabels[d],
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: d == 6 ? ThymeColor.dangerText : (d == 5 ? ThymeColor.infoText : ThymeColor.text))),
+            ),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () => _editAvail(d),
+                  child: _avail[d] == null
+                      ? const Text("안 돼요 · 눌러서 정하기", style: TextStyle(fontSize: 14, color: ThymeColor.textSub))
+                      : Text("${_hmm(_avail[d]!.$1)}–${_hmm(_avail[d]!.$2)}${_avail[d]!.$2 >= 1440 ? ' (밤샘 가능)' : ''}",
+                          style: ThymeTheme.mono(context, size: 15)),
+                ),
+              ),
+            ),
+            if (_avail[d] != null)
+              IconButton(
+                tooltip: "${weekdayLabels[d]}요일 지우기",
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(() => _avail.remove(d)),
+                icon: const Icon(Icons.close, size: 18, color: ThymeColor.textSub),
+              ),
+          ]),
+        if (last != null && empty.isNotEmpty)
+          TextButton.icon(
+            onPressed: () => setState(() {
+              for (final d in empty) {
+                _avail[d] = last;
+              }
+            }),
+            icon: const Icon(Icons.copy_all, size: 18),
+            label: Text("${_hmm(last.$1)}–${_hmm(last.$2)} 을 비어 있는 요일에 모두"),
+          ),
       ]),
     );
   }

@@ -45,6 +45,33 @@ class PreferenceApi {
 
   String get _store => '/api/stores/${_session.requireStoreId()}';
 
+  // ── 평소 일할 수 있는 시간 (W11 아래. 그달 희망을 안 냈을 때 엔진이 쓴다)
+
+  /// 서버는 내가 속한 모든 매장 것을 주니 지금 매장(내 직원 번호)만 남긴다
+  Future<List<WeeklyAvailability>> myAvailabilities() async {
+    final me = _session.currentMembership?.employeeId;
+    final list = await _api.get('/api/availabilities/my') as List;
+    return [
+      for (final j in list.cast<Map<String, dynamic>>())
+        if (me == null || (j['employeeId'] as num?)?.toInt() == me) WeeklyAvailability.fromJson(j),
+    ];
+  }
+
+  /// 요일별로 맞춘다: 없던 요일은 등록, 바뀐 요일은 수정, 지운 요일은 삭제
+  Future<void> syncAvailabilities(List<WeeklyAvailability> before, Map<int, WeeklyAvailability> after) async {
+    for (final b in before) {
+      if (!after.containsKey(b.weekday)) await _api.delete('/api/availabilities/${b.id}');
+    }
+    for (final a in after.values) {
+      final old = before.where((b) => b.weekday == a.weekday).firstOrNull;
+      if (old == null) {
+        await _api.post('/api/availabilities', data: {'storeId': _session.requireStoreId(), ...a.toJson()});
+      } else if (old.startTime != a.startTime || old.endTime != a.endTime) {
+        await _api.put('/api/availabilities/${old.id}', data: a.toJson());
+      }
+    }
+  }
+
   /// W11 고정 일정 (요일마다 한 건)
   Future<List<FixedSchedule>> fixedSchedules() async =>
       [for (final j in await _api.get('$_store/fixed-schedules/my') as List) FixedSchedule.fromJson(j as Map<String, dynamic>)];
