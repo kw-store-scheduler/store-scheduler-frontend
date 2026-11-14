@@ -5,6 +5,7 @@ import '../../core/store_api.dart';
 import '../../core/theme.dart';
 import '../../models/store.dart';
 import '../../theme/thyme_theme.dart';
+import '../../widgets/thyme_pickers.dart';
 import '../../widgets/thyme_step_app_bar.dart';
 import 'o04_curation_page.dart';
 
@@ -485,11 +486,13 @@ class _AddExceptionSheetState extends State<_AddExceptionSheet> {
 
   Future<void> _pickRange() async {
     final now = DateTime.now();
-    final range = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(now.year, now.month),
-      lastDate: DateTime(now.year + 1, 12, 31),
-      initialDateRange: DateTimeRange(start: _start, end: _end),
+    final range = await showThymeDateRangePicker(
+      context,
+      first: DateTime(now.year, now.month),
+      last: DateTime(now.year + 1, 12, 31),
+      initial: DateTimeRange(start: _start, end: _end),
+      title: "평소와 다른 기간",
+      holidays: StoreApi().holidays,
     );
     if (range != null) {
       setState(() {

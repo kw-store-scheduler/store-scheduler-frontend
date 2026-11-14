@@ -5,6 +5,7 @@ import '../../core/join_api.dart';
 import '../../core/theme.dart';
 import '../../models/user.dart';
 import '../../theme/thyme_theme.dart';
+import '../../widgets/thyme_pickers.dart';
 import '../../widgets/thyme_step_app_bar.dart';
 import 'j04_approval_waiting_page.dart';
 
@@ -46,12 +47,13 @@ class _JoinProfilePageState extends State<JoinProfilePage> {
   static String _format(DateTime d) => "${d.year}. ${d.month.toString().padLeft(2, '0')}. ${d.day.toString().padLeft(2, '0')}";
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _startDate,
-      firstDate: DateTime(DateTime.now().year - 5),
-      lastDate: DateTime(DateTime.now().year + 1, 12, 31),
-      helpText: "근무 시작일",
+    // 이미 일하던 사람은 몇 년 전일 수도 있어서 달력을 넘기지 않고 연·월·일을 굴린다
+    final picked = await showThymeDateWheel(
+      context,
+      initial: _startDate,
+      first: DateTime(DateTime.now().year - 5),
+      last: DateTime(DateTime.now().year + 1, 12, 31),
+      title: "근무 시작일",
     );
     if (picked != null) setState(() => _startDate = picked);
   }

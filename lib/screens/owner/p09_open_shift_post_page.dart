@@ -1,12 +1,13 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../../core/api_service.dart';
 import '../../core/owner_api.dart';
+import '../../core/store_api.dart';
 import '../../core/theme.dart';
 import '../../models/owner.dart';
 import '../../models/store.dart' show hhmm;
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_owner_header.dart';
+import '../../widgets/thyme_pickers.dart';
 
 /// P09 빈 근무 게시판 (점주). [openShiftId]가 있으면 그 글의 지원자(이번 달 추가 근무가 적은 순)를 보고 한 명을 확정한다.
 /// 없으면 열린 글 목록과 '추가 인원 모집'.
@@ -293,29 +294,10 @@ class _ExtraSheetState extends State<_ExtraSheet> {
   static String _fmt(int m) => "${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}";
 
   Future<void> _pickTime(bool start) async {
-    var value = start ? _start : _end;
-    final picked = await showModalBottomSheet<int>(
-      context: context,
-      backgroundColor: ThymeColor.surface,
-      builder: (context) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          SizedBox(
-            height: 200,
-            child: CupertinoPicker(
-              itemExtent: 36,
-              scrollController: FixedExtentScrollController(initialItem: value ~/ 30),
-              onSelectedItemChanged: (i) => value = i * 30,
-              children: [for (var i = 0; i < 48; i++) Center(child: Text(_fmt(i * 30), style: ThymeTheme.mono(context, size: 18)))],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(context, value), child: const Text("확인"))),
-          ),
-        ]),
-      ),
-    );
-    if (picked != null) setState(() => start ? _start = picked : _end = picked);
+    final value = start ? _start : _end;
+    final t = await showThymeTimePicker(context,
+        initial: TimeOfDay(hour: value ~/ 60, minute: value % 60), title: start ? "시작 시간" : "끝나는 시간", minuteStep: 30);
+    if (t != null) setState(() => start ? _start = t.hour * 60 + t.minute : _end = t.hour * 60 + t.minute);
   }
 
   Future<void> _save() async {
@@ -347,7 +329,8 @@ class _ExtraSheetState extends State<_ExtraSheet> {
                 label: Text(mdw(_date)),
                 onPressed: () async {
                   final now = DateTime.now();
-                  final d = await showDatePicker(context: context, initialDate: _date, firstDate: DateUtils.dateOnly(now), lastDate: DateTime(now.year + 1));
+                  final d = await showThymeDatePicker(context,
+                      initial: _date, first: DateUtils.dateOnly(now), last: DateTime(now.year + 1), title: "근무 날짜", holidays: StoreApi().holidays);
                   if (d != null) setState(() => _date = d);
                 },
               ),

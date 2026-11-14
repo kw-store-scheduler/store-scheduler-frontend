@@ -53,8 +53,10 @@ class ApiService {
     dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
-        // 근무표 생성(엔진 3회)은 오래 걸리고, 무료 서버는 잠들어 있다 깨어나는 데 시간이 걸린다
-        connectTimeout: const Duration(seconds: 10),
+        // 근무표 생성(엔진 3회)은 오래 걸리고(직원 18명 17초), 무료 서버는 잠들어 있다 깨어나는 데 시간이 걸린다.
+        // 웹(dio_web_adapter)은 응답 헤더가 올 때까지를 connectTimeout 으로 재서, 서버가 계산하는 동안 10초면 끊긴다
+        // → 웹은 receiveTimeout 과 같게
+        connectTimeout: kIsWeb ? const Duration(seconds: 90) : const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 90),
         headers: {'Content-Type': 'application/json'},
       ),

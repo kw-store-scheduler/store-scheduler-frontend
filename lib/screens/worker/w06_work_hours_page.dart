@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/owner.dart' show won;
 import '../../models/preference.dart';
 import '../../theme/thyme_theme.dart';
+import '../../widgets/thyme_pickers.dart';
 import '../../widgets/thyme_step_app_bar.dart';
 import 'w05_skills_page.dart';
 
@@ -131,11 +132,13 @@ class _WorkHoursPageState extends State<WorkHoursPage> {
                     child: Column(children: [
                       _stepper("이번 달 최소", _perWeek(_min), _min == null ? "–" : "${_min}h",
                           dec: _min == null || _min! <= 0 ? null : () => _set(min: _min! - 2),
-                          inc: () => _set(min: (_min ?? w.contractMinMonthly ?? 40) + (_min == null ? 0 : 2))),
+                          inc: () => _set(min: (_min ?? w.contractMinMonthly ?? 40) + (_min == null ? 0 : 2)),
+                          type: () => _typeHours(min: true, initial: _min ?? w.contractMinMonthly)),
                       const Divider(height: 1),
                       _stepper("이번 달 최대", _perWeek(_max), _max == null ? "–" : "${_max}h",
                           dec: _max == null || _max! <= (_min ?? 0) ? null : () => _set(max: _max! - 2),
-                          inc: () => _set(max: (_max ?? w.contractMaxMonthly ?? 80) + (_max == null ? 0 : 2))),
+                          inc: () => _set(max: (_max ?? w.contractMaxMonthly ?? 80) + (_max == null ? 0 : 2)),
+                          type: () => _typeHours(min: false, initial: _max ?? w.contractMaxMonthly)),
                       const Divider(height: 1),
                       _stepper("최대 연속 근무", "1~$_maxStreak일", _streak == null ? "–" : "$_streak일",
                           dec: _streak == null || _streak! <= 1 ? null : () => setState(() => _streak = _streak! - 1),
@@ -210,7 +213,14 @@ class _WorkHoursPageState extends State<WorkHoursPage> {
         ]),
       );
 
-  Widget _stepper(String title, String sub, String value, {VoidCallback? dec, VoidCallback? inc}) => Padding(
+  /// 숫자를 누르면 키보드로 바로 (버튼으로 2시간씩 수십 번 누르지 않게)
+  Future<void> _typeHours({required bool min, int? initial}) async {
+    final v = await showThymeNumberInput(context,
+        title: min ? "이번 달 최소 근무 시간" : "이번 달 최대 근무 시간", initial: initial, min: min ? 0 : (_min ?? 0), max: 250, unit: "시간");
+    if (v != null) min ? _set(min: v) : _set(max: v);
+  }
+
+  Widget _stepper(String title, String sub, String value, {VoidCallback? dec, VoidCallback? inc, VoidCallback? type}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(children: [
           Expanded(
@@ -219,9 +229,27 @@ class _WorkHoursPageState extends State<WorkHoursPage> {
               Text(sub, style: const TextStyle(fontSize: 13, color: ThymeColor.textSub)),
             ]),
           ),
-          IconButton.outlined(tooltip: "$title 줄이기", onPressed: dec, icon: const Icon(Icons.remove)),
-          SizedBox(width: 64, child: Center(child: Text(value, style: ThymeTheme.mono(context, size: 18)))),
-          IconButton.filled(tooltip: "$title 늘리기", onPressed: inc, icon: const Icon(Icons.add)),
+          ThymeRepeatButton(style: ThymeRepeatStyle.outlined, tooltip: "$title 줄이기", onPressed: dec, icon: Icons.remove),
+          SizedBox(
+            width: 64,
+            child: type == null
+                ? Center(child: Text(value, style: ThymeTheme.mono(context, size: 18)))
+                : Tooltip(
+                    message: "$title 직접 입력",
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: type,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Center(
+                          child: Text(value,
+                              style: ThymeTheme.mono(context, size: 18).copyWith(decoration: TextDecoration.underline, decorationStyle: TextDecorationStyle.dotted)),
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
+          ThymeRepeatButton(style: ThymeRepeatStyle.filled, tooltip: "$title 늘리기", onPressed: inc, icon: Icons.add),
         ]),
       );
 
