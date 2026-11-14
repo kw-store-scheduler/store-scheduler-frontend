@@ -8,6 +8,7 @@ import '../../models/store.dart';
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_owner_header.dart';
 import '../../widgets/thyme_owner_tab_bar.dart';
+import '../../widgets/thyme_pickers.dart';
 import 'p03_generating_schedule_page.dart';
 
 /// 점주 하단 탭 '근무표' (시안 없음: P01 탭 구성에만 있음). 확정 근무표(GET /schedules)를 주 단위로 보고,
@@ -334,10 +335,10 @@ class _ScheduleEditSheetState extends State<_ScheduleEditSheet> {
 
   Future<void> _pickTime(bool start) async {
     final cur = start ? _start : _end;
-    final t = await showTimePicker(
-      context: context,
-      initialTime: cur == null ? TimeOfDay(hour: start ? 9 : 18, minute: 0) : TimeOfDay(hour: int.parse(cur.substring(0, 2)), minute: int.parse(cur.substring(3, 5))),
-      helpText: start ? "시작 시간" : "끝나는 시간",
+    final t = await showThymeTimePicker(
+      context,
+      initial: cur == null ? TimeOfDay(hour: start ? 9 : 18, minute: 0) : TimeOfDay(hour: int.parse(cur.substring(0, 2)), minute: int.parse(cur.substring(3, 5))),
+      title: start ? "시작 시간" : "끝나는 시간",
     );
     if (t == null) return;
     final v = "${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}";
@@ -345,12 +346,13 @@ class _ScheduleEditSheetState extends State<_ScheduleEditSheet> {
   }
 
   Future<void> _pickDate() async {
-    final d = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime.now().subtract(const Duration(days: 60)),
-      lastDate: DateTime.now().add(const Duration(days: 120)),
-      helpText: "근무 날짜",
+    final d = await showThymeDatePicker(
+      context,
+      initial: _date,
+      first: DateTime.now().subtract(const Duration(days: 60)),
+      last: DateTime.now().add(const Duration(days: 120)),
+      title: "근무 날짜",
+      holidays: StoreApi().holidays,
     );
     if (d != null) setState(() => _date = d);
   }

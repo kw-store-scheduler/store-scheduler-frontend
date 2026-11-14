@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:thyme_frontend/core/api_service.dart';
 import 'package:thyme_frontend/core/session.dart';
 import 'package:thyme_frontend/screens/owner/p11_worker_profile_confirm_page.dart';
+import 'package:thyme_frontend/widgets/thyme_pickers.dart';
 
 import 'test_helpers.dart';
 
@@ -141,10 +142,14 @@ void main() {
   testWidgets('퇴사 예정을 걸고, 다시 취소한다', (tester) async {
     await open(tester);
     await tapText(tester, '퇴사 처리');
-    // 달력: 오늘에서 다음 달로 넘겨 아무 날(15일)이나 고른다 → 미래 = 퇴사 예정
-    await tester.tap(find.byIcon(Icons.chevron_right).last);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('15').last);
+    // 달력 시트: 다음 달 15일을 고른다 → 미래 = 퇴사 예정
+    final now0 = DateTime.now();
+    final pick = DateTime(now0.year, now0.month + 1, 15);
+    final day = find.byKey(thymeDayKey(pick));
+    await tester.scrollUntilVisible(day, 200, scrollable: find.byType(Scrollable).last);
+    await tester.tap(day);
+    await tester.pump();
+    expect(find.textContaining('${pick.month}/15('), findsOneWidget); // 아래 줄에 고른 날
     await tester.tap(find.text('확인'));
     await tester.pumpAndSettle();
     expect(find.textContaining('예정을 취소해도 지운 근무는 돌아오지 않아요'), findsOneWidget);

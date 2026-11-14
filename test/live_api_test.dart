@@ -236,12 +236,11 @@ void main() {
     await tester.enterText(find.byType(TextField).first, '김지수');
     await tester.pump();
 
-    // 근무 시작일: 누르면 달력이 열린다 (예전엔 안 열렸음)
+    // 근무 시작일: 누르면 연·월·일 휠이 열린다 (예전엔 안 열렸음) → 그대로 확인하면 오늘
     await tap(tester, find.byIcon(Icons.calendar_today), until: () => has('확인'));
-    await tap(tester, find.text('1').last);
     await tap(tester, find.text('확인'));
     final now = DateTime.now();
-    expect(find.textContaining('${now.year}. ${now.month.toString().padLeft(2, '0')}. 01'), findsOneWidget);
+    expect(find.textContaining('${now.year}. ${now.month.toString().padLeft(2, '0')}. ${now.day.toString().padLeft(2, '0')}'), findsOneWidget);
 
     await tap(tester, find.text('가입 요청 보내기'), until: () => shows(ApprovalWaitingPage));
     expect(find.text('테스트 카페 $stamp'), findsOneWidget);

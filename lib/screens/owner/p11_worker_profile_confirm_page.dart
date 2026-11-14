@@ -8,6 +8,7 @@ import '../../models/store.dart';
 import '../../models/user.dart';
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_owner_header.dart';
+import '../../widgets/thyme_pickers.dart';
 import '../../widgets/thyme_text_controller_scope.dart';
 import '../worker/w11_fixed_schedule_page.dart';
 import 'm01_worker_approval_page.dart' show minimumWage2026;
@@ -92,12 +93,12 @@ class _WorkerProfileConfirmPageState extends State<WorkerProfileConfirmPage> {
     if (!mounted || action == null) return;
     if (action == 'clear') return _apply((api) => api.updateProfile(widget.employeeId, clearProbation: true), "수습을 끝냈어요");
     final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: p.probationUntil ?? DateTime(now.year, now.month + 3, now.day),
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 2),
-      helpText: "수습 끝나는 날",
+    final picked = await showThymeDatePicker(
+      context,
+      initial: p.probationUntil ?? DateTime(now.year, now.month + 3, now.day),
+      first: DateTime(now.year - 1),
+      last: DateTime(now.year + 2),
+      title: "수습 끝나는 날",
     );
     if (picked != null) await _apply((api) => api.updateProfile(widget.employeeId, probationUntil: picked));
   }
@@ -253,12 +254,12 @@ class _WorkerProfileConfirmPageState extends State<WorkerProfileConfirmPage> {
   Future<void> _resign() async {
     final p = _p!;
     final today = DateUtils.dateOnly(DateTime.now());
-    final last = await showDatePicker(
-      context: context,
-      initialDate: today,
-      firstDate: today.subtract(const Duration(days: 90)),
-      lastDate: today.add(const Duration(days: 365)),
-      helpText: "마지막 근무일",
+    final last = await showThymeDatePicker(
+      context,
+      initial: today,
+      first: today.subtract(const Duration(days: 90)),
+      last: today.add(const Duration(days: 365)),
+      title: "마지막 근무일",
     );
     if (last == null || !mounted) return;
     final future = last.isAfter(today);

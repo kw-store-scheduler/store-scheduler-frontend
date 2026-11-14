@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import '../../core/api_service.dart';
 import '../../core/owner_api.dart';
 import '../../core/preference_api.dart';
+import '../../core/store_api.dart';
 import '../../core/theme.dart';
 import '../../models/preference.dart';
 import '../../models/store.dart' show weekdayLabels;
 import '../../theme/thyme_theme.dart';
+import '../../widgets/thyme_pickers.dart';
 import '../../widgets/thyme_step_app_bar.dart';
 import 'w02_date_shift_page.dart';
 
@@ -97,13 +99,11 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
       )));
 
   Future<void> _editTime(_Group g) async {
-    final start = await showTimePicker(context: context, initialTime: g.start, helpText: "시작 시간");
-    if (start == null || !mounted) return;
-    final end = await showTimePicker(context: context, initialTime: g.end, helpText: "끝 시간");
-    if (end == null) return;
+    final r = await showThymeTimeRangePicker(context, start: g.start, end: g.end, title: "${g.label} 시간", minuteStep: 10);
+    if (r == null || !mounted) return;
     setState(() {
-      g.start = start;
-      g.end = end;
+      g.start = r.$1;
+      g.end = r.$2;
     });
   }
 
@@ -125,13 +125,13 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
 
   Future<void> _editPeriod(_Group g) async {
     final now = DateTime.now();
-    final r = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 2),
-      initialDateRange: g.validFrom == null || g.validUntil == null ? null : DateTimeRange(start: g.validFrom!, end: g.validUntil!),
-      helpText: "이 일정이 있는 기간",
-      saveText: "확인",
+    final r = await showThymeDateRangePicker(
+      context,
+      first: DateTime(now.year - 1),
+      last: DateTime(now.year + 2),
+      initial: g.validFrom == null || g.validUntil == null ? null : DateTimeRange(start: g.validFrom!, end: g.validUntil!),
+      title: "이 일정이 있는 기간",
+      holidays: StoreApi().holidays,
     );
     if (r != null) {
       setState(() {
@@ -143,13 +143,13 @@ class _FixedSchedulePageState extends State<FixedSchedulePage> {
 
   Future<void> _addPeriod() async {
     final month = widget.draft?.month ?? DateTime(DateTime.now().year, DateTime.now().month + 1);
-    final r = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(month.year, month.month - 1),
-      lastDate: DateTime(month.year, month.month + 2, 0),
-      initialDateRange: DateTimeRange(start: month, end: month.add(const Duration(days: 4))),
-      helpText: "못 나오는 기간 (시험 기간 등)",
-      saveText: "확인",
+    // 미리 5일을 골라 두면 새로 고를 때 헷갈려서 비워 두고, 그달부터 보여 준다
+    final r = await showThymeDateRangePicker(
+      context,
+      first: DateTime(month.year, month.month - 1),
+      last: DateTime(month.year, month.month + 2, 0),
+      title: "못 나오는 기간 (시험 기간 등)",
+      holidays: StoreApi().holidays,
     );
     if (r == null || !mounted) return;
     final weekdaysOnly = await showDialog<bool>(

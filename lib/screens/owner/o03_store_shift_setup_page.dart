@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/store.dart';
 import '../../theme/thyme_colors.dart';
 import '../../theme/thyme_theme.dart';
+import '../../widgets/thyme_pickers.dart';
 import '../../widgets/thyme_step_app_bar.dart';
 import 'o06_exception_days_page.dart';
 
@@ -446,7 +447,7 @@ class _StoreShiftSetupPageState extends State<StoreShiftSetupPage> {
       );
 }
 
-/// 시간 자유 탭: [−] 09:00 [+] (30분씩, 하루를 돌아간다)
+/// 시간 자유 탭: [−] 09:00 [+] (30분씩, 하루를 돌아간다). 시간을 누르면 휠, 버튼은 길게 누르면 계속
 class _HalfHourStepper extends StatelessWidget {
   const _HalfHourStepper({required this.label, required this.value, required this.onChanged});
 
@@ -458,22 +459,28 @@ class _HalfHourStepper extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         decoration: BoxDecoration(color: ThymeColor.surfaceSub, borderRadius: BorderRadius.circular(12)),
         child: Row(children: [
-          IconButton(
-            tooltip: "$label 30분 앞으로",
-            icon: const Icon(Icons.remove, size: 18),
-            onPressed: () => onChanged((value - 30) % 1440),
-          ),
+          ThymeRepeatButton(tooltip: "$label 30분 앞으로", icon: Icons.remove, size: 18, onPressed: () => onChanged((value - 30) % 1440)),
           Expanded(
-            child: Column(children: [
-              Text(label, style: const TextStyle(fontSize: 11, color: ThymeColor.textSub)),
-              Text(_fmt(value), style: ThymeTheme.mono(context, size: 15, color: ThymeColor.text)),
-            ]),
+            child: Tooltip(
+              message: "$label 시간 고르기",
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () async {
+                  final t = await showThymeTimePicker(context,
+                      initial: TimeOfDay(hour: value ~/ 60, minute: value % 60), title: "$label 시간", minuteStep: 30);
+                  if (t != null) onChanged(t.hour * 60 + t.minute);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(children: [
+                    Text(label, style: const TextStyle(fontSize: 11, color: ThymeColor.textSub)),
+                    Text(_fmt(value), style: ThymeTheme.mono(context, size: 15, color: ThymeColor.text)),
+                  ]),
+                ),
+              ),
+            ),
           ),
-          IconButton(
-            tooltip: "$label 30분 뒤로",
-            icon: const Icon(Icons.add, size: 18),
-            onPressed: () => onChanged((value + 30) % 1440),
-          ),
+          ThymeRepeatButton(tooltip: "$label 30분 뒤로", icon: Icons.add, size: 18, onPressed: () => onChanged((value + 30) % 1440)),
         ]),
       );
 }

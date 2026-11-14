@@ -6,6 +6,7 @@ import '../../models/owner.dart';
 import '../../models/store.dart' show hhmm;
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_owner_header.dart';
+import '../../widgets/thyme_pickers.dart';
 
 /// 점주 출퇴근 기록 (시안 없음, P08 사람 › 출퇴근 기록). GET /attendance?date= 날짜별 기록,
 /// 줄을 누르면 출근·퇴근 시각 고치기 (퇴근 누락·잘못 찍은 기록, PATCH /attendance/{id})
@@ -250,10 +251,11 @@ class _TimeSheetState extends State<_TimeSheet> {
   static String _fmt(TimeOfDay? t) => t == null ? "--:--" : "${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}";
 
   Future<void> _pick(bool clockIn) async {
-    final t = await showTimePicker(
-      context: context,
-      initialTime: (clockIn ? _in : _out) ?? _in,
-      helpText: clockIn ? "출근 시각" : "퇴근 시각",
+    final t = await showThymeTimePicker(
+      context,
+      initial: (clockIn ? _in : _out) ?? _in,
+      title: clockIn ? "출근 시각" : "퇴근 시각",
+      minuteStep: 1,
     );
     if (t != null) setState(() => clockIn ? _in = t : _out = t);
   }

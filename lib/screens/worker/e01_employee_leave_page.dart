@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import '../../core/api_service.dart';
 import '../../core/day_off_api.dart';
 import '../../core/preference_api.dart';
+import '../../core/store_api.dart';
 import '../../core/theme.dart';
 import '../../models/preference.dart';
 import '../../models/store.dart' show weekdayLabels;
 import '../../theme/thyme_theme.dart';
+import '../../widgets/thyme_pickers.dart';
 import '../../widgets/thyme_step_app_bar.dart';
 import 'w04_shift_attitude_page.dart';
 
@@ -88,13 +90,13 @@ class _EmployeeLeavePageState extends State<EmployeeLeavePage> {
     final last = DateTime(_month.year, _month.month + 1, 0);
     if (first.isAfter(last)) return;
     final taken = {for (final i in _items) i.date};
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: [for (var d = first; !d.isAfter(last); d = d.add(const Duration(days: 1))) d].firstWhere((d) => !taken.contains(d), orElse: () => first),
-      firstDate: first,
-      lastDate: last,
-      selectableDayPredicate: (d) => !taken.contains(DateUtils.dateOnly(d)),
-      helpText: "쉬고 싶은 날",
+    final picked = await showThymeDatePicker(
+      context,
+      first: first,
+      last: last,
+      selectable: (d) => !taken.contains(d),
+      title: "쉬고 싶은 날",
+      holidays: StoreApi().holidays,
     );
     if (picked == null) return;
     setState(() {
