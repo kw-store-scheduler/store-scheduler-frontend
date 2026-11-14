@@ -119,4 +119,16 @@ class WorkerApi {
   Future<void> setPushEnabled(bool on) => _api.patch('/api/users/me/notification-settings', data: {'pushEnabled': on});
 
   Future<MySummary> summary() async => MySummary.fromJson(await _api.get('$_store/me/summary') as Map<String, dynamic>);
+
+  // ── 연차 (정규직, 근무표가 나온 뒤 쉬어야 할 때. 사장님이 승인하면 그날은 필수 휴무)
+
+  Future<MyLeaves> myLeaves() async => MyLeaves.fromJson(await _api.get('$_store/leaves/my') as Map<String, dynamic>);
+
+  Future<void> requestLeave(DateTime date, {String? reason}) => _api.post('$_store/leaves', data: {
+        'date': dateParam(date),
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      });
+
+  /// 오늘 이후 연차만 (승인 대기·승인 모두). 승인된 걸 취소하면 그날 필수 휴무도 풀린다
+  Future<void> cancelLeave(int id) => _api.post('$_store/leaves/$id/cancel');
 }

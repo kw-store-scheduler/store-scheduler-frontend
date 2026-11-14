@@ -5,6 +5,7 @@ import '../../core/session.dart';
 import '../../core/theme.dart';
 import '../../core/worker_api.dart';
 import '../../models/owner.dart';
+import '../../models/user.dart' show EmploymentType;
 import '../../models/worker.dart';
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_leaf.dart';
@@ -14,6 +15,7 @@ import '../common/a03_login_page.dart'; // 로그아웃
 import 'j01_store_code_page.dart'; // 다른 매장 추가
 import 'w10_preference_report_page.dart'; // 희망 반영 리포트
 import 'w11_fixed_schedule_page.dart'; // 고정 일정
+import 'worker_annual_leave_page.dart'; // 연차 (정규직)
 import 'worker_attendance_page.dart'; // 근무 기록
 
 /// H06 내 정보 (근로자 하단 탭). GET /me/summary
@@ -116,6 +118,7 @@ class _MyInfoPageState extends State<MyInfoPage> {
               const SizedBox(height: 12),
               _card([
                 _menu("근무 기록", () => _open(const WorkerAttendancePage())),
+                if (Session.instance.currentMembership?.employmentType == EmploymentType.fullTime) _menu("연차", () => _open(const AnnualLeavePage())),
                 _menu("서류함 · 임금명세서", null),
                 // 고정 일정 화면은 희망 신청 흐름(W11)을 그대로 쓴다
                 _menu("고정 일정", () => _open(const FixedSchedulePage()), trailing: s.fixedScheduleCount == 0 ? "없음" : "${s.fixedScheduleCount}건"),

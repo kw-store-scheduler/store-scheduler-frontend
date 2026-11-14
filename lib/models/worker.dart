@@ -450,3 +450,30 @@ String timeRange(String start, String end) => '${hm(start)}–${hm(end)}';
 
 /// "1.5" → "1.5", "60.0" → "60"
 String hours(double h) => h == h.roundToDouble() ? h.toInt().toString() : h.toStringAsFixed(1);
+
+/// 내 연차 (GET /leaves/my). 정규직이 아니면 balance 가 없다.
+/// 서버는 '연차 신청' 기록(승인 대기·승인)만 사용으로 센다
+class MyLeaves {
+  const MyLeaves({this.entitled, this.used, this.remaining, this.yearStart, required this.requests});
+
+  final int? entitled;
+  final int? used;
+  final int? remaining;
+
+  /// 올해 연차가 시작된 날 (입사일 기준 1년 단위)
+  final DateTime? yearStart;
+  final List<LeaveRequestInfo> requests;
+
+  bool get fullTime => entitled != null;
+
+  factory MyLeaves.fromJson(Map<String, dynamic> j) {
+    final b = j['balance'] as Map<String, dynamic>?;
+    return MyLeaves(
+      entitled: (b?['entitled'] as num?)?.toInt(),
+      used: (b?['used'] as num?)?.toInt(),
+      remaining: (b?['remaining'] as num?)?.toInt(),
+      yearStart: b?['leaveYearStart'] == null ? null : DateTime.parse(b!['leaveYearStart'] as String),
+      requests: [for (final r in j['requests'] as List? ?? const []) LeaveRequestInfo.fromJson(r as Map<String, dynamic>)],
+    );
+  }
+}
