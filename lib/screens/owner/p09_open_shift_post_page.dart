@@ -75,6 +75,50 @@ class _OpenShiftPostPageState extends State<OpenShiftPostPage> {
     }
   }
 
+  /// 추가 모집 글 내리기 (DELETE /open-shifts/{id}). 결원 글은 결원 요청을 취소하면 같이 내려가서 여기선 안 보인다.
+  /// 아직 확정 전인 지원은 서버가 거절로 닫는다
+  Future<void> _takeDown(OpenShiftItem p) async {
+    final waiting = _applicants?.where((a) => a.status == 'APPLIED').length ?? 0;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("이 모집 글을 내릴까요?"),
+        content: Text("${mdw(p.workDate)} ${hhmm(p.startTime)}–${hhmm(p.endTime)} 추가 모집이 게시판에서 사라져요."
+            "${waiting > 0 ? "\n지원한 $waiting명의 지원도 함께 닫혀요." : ""}"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("아니요")),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: ThymeColor.dangerText),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("글 내리기"),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await OwnerApi().deleteOpenShift(p.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("모집 글을 내렸어요")));
+      // 이 글만 보러 들어왔으면 돌아가고, 게시판에서 열었으면 목록으로
+      if (widget.openShiftId != null) {
+        Navigator.maybePop(context);
+      } else {
+        setState(() {
+          _openId = null;
+          _applicants = null;
+          _picked = null;
+        });
+        await _load();
+      }
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _addExtra() async {
     final ok = await showModalBottomSheet<bool>(
       context: context,
@@ -189,6 +233,15 @@ class _OpenShiftPostPageState extends State<OpenShiftPostPage> {
         child: const Text("이번 달 추가 근무가 적은 사람이 위로 와요. 한 사람에게 몰리지 않게.",
             style: TextStyle(fontSize: 14, color: ThymeColor.infoText, height: 1.5)),
       ),
+      if (_post?.kind == 'EXTRA') ...[
+        const SizedBox(height: 12),
+        TextButton.icon(
+          style: TextButton.styleFrom(foregroundColor: ThymeColor.dangerText),
+          onPressed: _busy ? null : () => _takeDown(_post!),
+          icon: const Icon(Icons.delete_outline, size: 18),
+          label: const Text("이 모집 글 내리기"),
+        ),
+      ],
     ]);
   }
 
