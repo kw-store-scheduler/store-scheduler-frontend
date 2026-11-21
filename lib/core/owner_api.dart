@@ -1,5 +1,5 @@
 import '../models/owner.dart';
-import '../models/preference.dart' show FixedSchedule, toServerEnum;
+import '../models/preference.dart' show FixedSchedule, WeeklyAvailability, toServerEnum;
 import '../models/store.dart';
 import '../models/user.dart';
 import '../models/worker.dart' show Trade;
@@ -40,6 +40,10 @@ class OwnerApi {
   Future<Roster> roster() async => Roster.fromJson(await _api.get('$_store/roster') as Map<String, dynamic>);
 
   Future<List<EmployeeInfo>> pendingEmployees() async => _list(await _api.get('$_store/employees/pending'), EmployeeInfo.fromJson);
+
+  /// 직원들이 정한 요일별 평소 가능 시간 (퇴사·대기 직원 것도 섞여 올 수 있다)
+  Future<List<WeeklyAvailability>> storeAvailabilities() async =>
+      _list(await _api.get('$_store/availabilities'), WeeklyAvailability.fromJson);
 
   Future<List<EmployeeInfo>> employees() async => _list(await _api.get('$_store/employees'), EmployeeInfo.fromJson);
 

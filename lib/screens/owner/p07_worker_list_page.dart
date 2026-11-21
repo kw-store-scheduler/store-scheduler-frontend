@@ -7,6 +7,7 @@ import '../../models/user.dart';
 import '../../theme/thyme_theme.dart';
 import '../../widgets/thyme_owner_header.dart';
 import 'm01_worker_approval_page.dart';
+import 'owner_availability_page.dart';
 import 'p11_worker_profile_confirm_page.dart';
 
 /// P07 근무자 목록. GET /roster: 직원/알바, 오늘 상태(근무 중·결원·휴무), 이번 달 시간, 다음 달 희망 제출 여부
@@ -103,6 +104,7 @@ class _WorkerListPageState extends State<WorkerListPage> {
                             child: const Text("아직 승인된 근무자가 없어요. 매장 코드를 보내 초대하고, 가입 요청을 승인해 주세요.",
                                 style: TextStyle(fontSize: 14, color: ThymeColor.textSub, height: 1.5)),
                           ),
+                        if (all.isNotEmpty) _availabilityLink(),
                         for (final e in shown) _row(e),
                         if (shown.isNotEmpty)
                           const Padding(
@@ -158,6 +160,30 @@ class _WorkerListPageState extends State<WorkerListPage> {
               ),
             ),
         ]),
+      );
+
+  /// 요일별로 누가 일할 수 있는지 (직원이 정한 평소 가능 시간)
+  Widget _availabilityLink() => Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Material(
+          color: ThymeColor.surfaceSub,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => _open(const OwnerAvailabilityPage()),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(children: [
+                Icon(Icons.schedule, size: 22, color: ThymeColor.icon),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text("요일별로 누가 일할 수 있는지 보기", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ThymeColor.text)),
+                ),
+                Icon(Icons.chevron_right, color: ThymeColor.icon),
+              ]),
+            ),
+          ),
+        ),
       );
 
   Widget _row(RosterRow e) {

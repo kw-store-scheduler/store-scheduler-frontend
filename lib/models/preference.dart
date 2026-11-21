@@ -369,9 +369,12 @@ class MySkills {
 /// 그달 희망을 안 낸 사람은 엔진이 이 시간으로 배정한다 (알바는 이것도 없으면 배정 0, 정규직은 없으면 전부 가능).
 /// 교대가 이 시간 안에 다 들어가야 배정되고, 밤을 넘기는 교대는 끝이 자정(23:59)일 때만 들어간다
 class WeeklyAvailability {
-  const WeeklyAvailability({this.id, required this.weekday, required this.startTime, required this.endTime});
+  const WeeklyAvailability({this.id, this.employeeId, required this.weekday, required this.startTime, required this.endTime});
 
   final int? id;
+
+  /// 사장님이 매장 전체를 받을 때 누구 것인지 (GET /stores/{id}/availabilities)
+  final int? employeeId;
 
   /// 0 = 월 … 6 = 일
   final int weekday;
@@ -384,6 +387,7 @@ class WeeklyAvailability {
 
   factory WeeklyAvailability.fromJson(Map<String, dynamic> j) => WeeklyAvailability(
         id: (j['id'] as num?)?.toInt(),
+        employeeId: (j['employeeId'] as num?)?.toInt(),
         weekday: _days.indexOf(j['dayOfWeek'] as String),
         startTime: (j['startTime'] as String).substring(0, 5),
         endTime: (j['endTime'] as String).substring(0, 5),
