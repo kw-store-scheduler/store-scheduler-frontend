@@ -164,9 +164,16 @@ class PreferenceDraft {
   /// 고정 일정을 바꾼 뒤(W11) 그달 칸을 다시 받으면, 새로 잠긴 칸에 골라 둔 값은 지운다
   void replaceView(PreferenceMonth m) {
     view = m;
-    for (final c in m.cells.where((c) => c.locked)) {
-      slots.remove((_dateOnly(c.date), c.shiftId));
-    }
+    trimToView();
+  }
+
+  /// 그달에 없는 칸(사장님이 그 요일 인원을 0명으로 둔 교대)과 잠긴 칸에 골라 둔 값은 지운다.
+  /// 서버는 없는 칸이 섞이면 제출 전체를 "근무 칸이 아닙니다"(400)로 거절한다
+  void trimToView() {
+    final m = view;
+    if (m == null) return;
+    final open = {for (final c in m.cells) if (!c.locked) (_dateOnly(c.date), c.shiftId)};
+    slots.removeWhere((key, _) => !open.contains(key));
   }
 
   /// 지난달 답이나 이미 낸 값으로 초안을 채운다 (W00 "지난달 답 불러오기")
@@ -363,4 +370,35 @@ class MySkills {
         ],
         probationUntil: j['probationUntil'] == null ? null : DateTime.parse(j['probationUntil'] as String),
       );
+}
+
+/// 평소 매주 일할 수 있는 시간 (GET/POST/PUT/DELETE /api/availabilities). 요일마다 한 건.
+/// 그달 희망을 안 낸 사람은 엔진이 이 시간으로 배정한다 (알바는 이것도 없으면 배정 0, 정규직은 없으면 전부 가능).
+/// 교대가 이 시간 안에 다 들어가야 배정되고, 밤을 넘기는 교대는 끝이 자정(23:59)일 때만 들어간다
+class WeeklyAvailability {
+  const WeeklyAvailability({this.id, this.employeeId, required this.weekday, required this.startTime, required this.endTime});
+
+  final int? id;
+
+  /// 사장님이 매장 전체를 받을 때 누구 것인지 (GET /stores/{id}/availabilities)
+  final int? employeeId;
+
+  /// 0 = 월 … 6 = 일
+  final int weekday;
+  final String startTime; // "09:00"
+  final String endTime; // "18:00", 자정까지면 "23:59"
+
+  static const _days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+
+  bool get untilMidnight => endTime.startsWith('23:59');
+
+  factory WeeklyAvailability.fromJson(Map<String, dynamic> j) => WeeklyAvailability(
+        id: (j['id'] as num?)?.toInt(),
+        employeeId: (j['employeeId'] as num?)?.toInt(),
+        weekday: _days.indexOf(j['dayOfWeek'] as String),
+        startTime: (j['startTime'] as String).substring(0, 5),
+        endTime: (j['endTime'] as String).substring(0, 5),
+      );
+
+  Map<String, dynamic> toJson() => {'dayOfWeek': _days[weekday], 'startTime': startTime, 'endTime': endTime};
 }

@@ -11,6 +11,7 @@ import 'e01_employee_leave_page.dart';
 import 'h04_notification_page.dart';
 import 'h12_absence_report_page.dart';
 import 'w08_cover_accept_page.dart';
+import 'worker_annual_leave_page.dart';
 
 /// H02 직원 홈. GET /home/worker + 오늘 내 업무(GET /tasks/my) (가이드 4-0 직원 vs 알바)
 /// 오늘 근무(출근·퇴근) → 이번 주 근무 시간 · 남은 연차 → 나에게 온 대타 요청 → 오늘 업무 체크리스트
@@ -204,20 +205,28 @@ class _EmployeeHomePageState extends State<EmployeeHomePage> {
           ),
           const VerticalDivider(width: 1),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text("남은 연차", style: TextStyle(fontSize: 14, color: ThymeColor.textSub)),
-                const SizedBox(height: 8),
-                Text.rich(TextSpan(children: [
-                  TextSpan(text: "${h.leaveRemaining ?? '-'}", style: ThymeTheme.mono(context, size: 26)),
-                  const TextSpan(text: "일", style: TextStyle(fontSize: 15, color: ThymeColor.textSub)),
-                ])),
-                if (h.leaveEntitled != null) ...[
-                  const SizedBox(height: 6),
-                  Text("올해 ${h.leaveEntitled}일 중", style: const TextStyle(fontSize: 13, color: ThymeColor.textSub)),
-                ],
-              ]),
+            child: InkWell(
+              // 누르면 연차 신청·내역
+              borderRadius: const BorderRadius.horizontal(right: Radius.circular(20)),
+              onTap: () => _open(const AnnualLeavePage()),
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Row(children: [
+                    Expanded(child: Text("남은 연차", style: TextStyle(fontSize: 14, color: ThymeColor.textSub))),
+                    Icon(Icons.chevron_right, size: 18, color: ThymeColor.icon),
+                  ]),
+                  const SizedBox(height: 8),
+                  Text.rich(TextSpan(children: [
+                    TextSpan(text: "${h.leaveRemaining ?? '-'}", style: ThymeTheme.mono(context, size: 26)),
+                    const TextSpan(text: "일", style: TextStyle(fontSize: 15, color: ThymeColor.textSub)),
+                  ])),
+                  if (h.leaveEntitled != null) ...[
+                    const SizedBox(height: 6),
+                    Text("올해 ${h.leaveEntitled}일 중", style: const TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+                  ],
+                ]),
+              ),
             ),
           ),
         ]),

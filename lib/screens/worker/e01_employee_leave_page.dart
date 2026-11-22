@@ -160,7 +160,8 @@ class _EmployeeLeavePageState extends State<EmployeeLeavePage> {
                             const Text("쉬는 방법을 순서대로 골라요",
                                 style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: ThymeColor.text)),
                             const SizedBox(height: 10),
-                            Text("${_month.month}월에 쉬고 싶은 날을 넣고, 휴무가 안 되면 쓸 대안을 누른 순서대로 정해요. 연차를 아끼고 싶으면 연차를 뒤에 두세요.",
+                            Text("${_month.month}월에 쉬고 싶은 날을 넣고, 휴무가 안 되면 쓸 대안을 누른 순서대로 정해요. 연차를 아끼고 싶으면 연차를 뒤에 두세요. "
+                                "근무표가 나온 뒤에 쉬어야 하면 홈의 '남은 연차'에서 연차를 신청해요.",
                                 style: const TextStyle(fontSize: 15, color: ThymeColor.textSub, height: 1.5)),
                             const SizedBox(height: 20),
                             _buildSummary(context),

@@ -72,14 +72,16 @@ class StoreApi {
         'requiredStaff': requiredStaff,
       }) as Map<String, dynamic>);
 
-  /// O03: 교대 이름·시간 수정. 서버가 전체를 바꾸므로 기본 인원·요일도 그대로 보낸다
-  Future<ShiftInfo> updateShift(ShiftInfo shift, {required String name, required String startTime, required String endTime}) async =>
+  /// O03: 교대 이름·시간 수정. 서버가 전체를 바꾸므로 기본 인원·요일도 그대로 보낸다.
+  /// [keepDayOfWeek]가 false면 '이 요일만' 지정(서버 dayOfWeek)을 풀고 요일별 인원으로만 요일을 정한다
+  Future<ShiftInfo> updateShift(ShiftInfo shift,
+          {required String name, required String startTime, required String endTime, bool keepDayOfWeek = true}) async =>
       ShiftInfo.fromJson(await _api.put('$_store/shifts/${shift.id}', data: {
         'name': name,
         'startTime': startTime,
         'endTime': endTime,
         'requiredStaff': shift.requiredStaff,
-        'dayOfWeek': ?shift.dayOfWeek,
+        if (keepDayOfWeek) 'dayOfWeek': ?shift.dayOfWeek,
       }) as Map<String, dynamic>);
 
   /// O03: 교대 삭제 (마감 보고가 있으면 서버가 거절)

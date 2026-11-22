@@ -26,6 +26,7 @@ import 'package:thyme_frontend/screens/owner/p01_owner_home_page.dart';
 import 'package:thyme_frontend/screens/owner/p06_substitute_manage_page.dart';
 import 'package:thyme_frontend/screens/owner/p07_worker_list_page.dart';
 import 'package:thyme_frontend/screens/owner/p08_store_settings_page.dart';
+import 'package:thyme_frontend/screens/owner/p09_open_shift_post_page.dart';
 
 import 'test_helpers.dart';
 
@@ -713,5 +714,36 @@ void main() {
     expect(find.text('필수'), findsOneWidget);
     expect(find.text('안 되면 오후만 쉬기 → 다른 날과 교환'), findsOneWidget);
     expect(find.text('희망 (필수 한도 넘음)'), findsOneWidget);
+  });
+
+  testWidgets('P09 추가 모집 글 내리기: 확인하면 DELETE, 결원 글엔 버튼이 없다', (tester) async {
+    var items = [
+      {'id': 5, 'kind': 'EXTRA', 'workDate': '2026-12-20', 'startTime': '18:00:00', 'endTime': '22:00:00', 'title': '연말 대청소', 'headcount': 1, 'applicantCount': 1},
+      {'id': 6, 'kind': 'VACANCY', 'swapRequestId': 9, 'workDate': '2026-12-21', 'startTime': '09:00:00', 'endTime': '14:00:00', 'headcount': 1, 'applicantCount': 0},
+    ];
+    server.routes['GET $_store/open-shifts'] = (_) => {'items': items};
+    server.routes['GET $_store/open-shifts/5/applications'] = (_) => [
+          {'id': 1, 'employeeName': '하준', 'status': 'APPLIED', 'monthExtraCount': 0, 'weekHours': 20, 'expectedPay': 41280},
+        ];
+    server.routes['GET $_store/open-shifts/6/applications'] = (_) => [];
+    server.routes['DELETE $_store/open-shifts/5'] = (_) {
+      items = items.where((i) => i['id'] != 5).toList();
+      return (null, 204);
+    };
+
+    // 결원 글은 결원 요청 취소로 내려가서 버튼이 없다
+    await pumpScreen(tester, const OpenShiftPostPage(openShiftId: 6));
+    await settle(tester);
+    expect(find.text('이 모집 글 내리기'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+    await pumpScreen(tester, const OpenShiftPostPage(openShiftId: 5));
+    await settle(tester);
+    await tapText(tester, '이 모집 글 내리기');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('지원한 1명의 지원도 함께 닫혀요'), findsOneWidget);
+    await tester.tap(find.text('글 내리기'));
+    await settle(tester);
+    expect(server.sent('DELETE', '$_store/open-shifts/5'), hasLength(1));
   });
 }

@@ -13,6 +13,8 @@ import 'o06_exception_days_page.dart';
 
 /// O03 교대와 요일별 인원 (매장 등록 3/6).
 /// 교대 = GET /shifts (업종 기본 교대). 추가·삭제는 바로 서버에, 이름·시간·요일별 인원은 '다음'에서 한꺼번에 저장한다.
+/// 교대가 있는 요일 = 요일별 최소 인원이 1명 이상인 요일 (서버는 0명인 요일엔 그 교대를 닫는다: 근무표·희망 칸에서 빠짐).
+/// 교대를 추가·수정할 때 요일을 고르면 안 고른 요일을 0명으로 둔다
 class StoreShiftSetupPage extends StatefulWidget {
   const StoreShiftSetupPage({super.key, this.editing = false});
 
@@ -29,7 +31,7 @@ class _Row {
       : name = info.name,
         start = _toMin(info.startTime),
         end = _toMin(info.endTime),
-        minStaff = List.generate(7, info.minStaffOn);
+        minStaff = List.generate(7, (d) => _fixedDay(info) == null || _fixedDay(info) == d ? info.minStaffOn(d) : 0);
 
   final ShiftInfo info;
   String name;
@@ -37,8 +39,37 @@ class _Row {
   int end;
   final List<int> minStaff; // 월~일
 
-  bool get edited => name != info.name || start != _toMin(info.startTime) || end != _toMin(info.endTime);
+  /// 서버에 '이 요일만'(dayOfWeek)으로 만든 교대인데 요일을 바꿨으면 그 지정을 푼다
+  bool clearFixedDay = false;
+
+  /// 교대가 있는 요일 (최소 인원 1명 이상)
+  Set<int> get days => {for (var d = 0; d < 7; d++) if (minStaff[d] > 0) d};
+
+  bool get edited => name != info.name || start != _toMin(info.startTime) || end != _toMin(info.endTime) || clearFixedDay;
   int get minutes => end - start <= 0 ? end - start + 24 * 60 : end - start;
+}
+
+int? _fixedDay(ShiftInfo s) => s.dayOfWeek == null ? null : weekdayNames.indexOf(s.dayOfWeek!);
+
+/// 요일 묶음을 짧게: 매일 → null, "평일만", "주말만", 하루 빠지면 "월요일 빼고", 그 밖엔 "월·수·금만"
+String? daysLabel(Set<int> days) {
+  if (days.length == 7) return null;
+  if (days.isEmpty) return "요일 없음";
+  final sorted = days.toList()..sort();
+  if (sorted.join() == "01234") return "평일만";
+  if (sorted.join() == "56") return "주말만";
+  if (days.length == 6) return "${weekdayLabels[[for (var d = 0; d < 7; d++) d].firstWhere((d) => !days.contains(d))]}요일 빼고";
+  return "${sorted.map((d) => weekdayLabels[d]).join('·')}만";
+}
+
+/// 요일을 바꿨을 때 인원: 안 고른 요일은 0, 새로 고른 요일은 이 교대에서 가장 흔한 인원(없으면 1)
+List<int> staffForDays(List<int> current, Set<int> days) {
+  final counts = <int, int>{};
+  for (final n in current) {
+    if (n > 0) counts[n] = (counts[n] ?? 0) + 1;
+  }
+  final usual = counts.isEmpty ? 1 : (counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).first.key;
+  return [for (var d = 0; d < 7; d++) days.contains(d) ? (current[d] > 0 ? current[d] : usual) : 0];
 }
 
 int _toMin(String t) => int.parse(t.substring(0, 2)) * 60 + int.parse(t.substring(3, 5));
@@ -89,6 +120,7 @@ class _StoreShiftSetupPageState extends State<StoreShiftSetupPage> {
         name: row?.name ?? "",
         start: row?.start ?? 9 * 60,
         end: row?.end ?? 13 * 60,
+        days: row?.days ?? {0, 1, 2, 3, 4, 5, 6},
         canDelete: row != null && _rows!.length > 1,
       ),
     );
@@ -99,13 +131,25 @@ class _StoreShiftSetupPageState extends State<StoreShiftSetupPage> {
         row.name = result.name;
         row.start = result.start;
         row.end = result.end;
+        if (result.days.length != row.days.length || !result.days.containsAll(row.days)) {
+          row.minStaff.setAll(0, staffForDays(row.minStaff, result.days));
+          final fixed = _fixedDay(row.info);
+          if (fixed != null && !(result.days.length == 1 && result.days.contains(fixed))) row.clearFixedDay = true;
+        }
       });
       return;
     }
     setState(() => _saving = true);
     try {
-      final created = await StoreApi().addShift(name: result.name, startTime: _fmt(result.start), endTime: _fmt(result.end));
-      if (mounted) setState(() => _rows!.add(_Row(created)));
+      final api = StoreApi();
+      final created = await api.addShift(name: result.name, startTime: _fmt(result.start), endTime: _fmt(result.end));
+      final row = _Row(created);
+      if (result.days.length < 7) {
+        // 추가는 바로 서버에 가므로 요일도 바로 맞춘다 ('다음'을 안 눌러도 안 고른 요일에 교대가 생기지 않게)
+        row.minStaff.setAll(0, staffForDays(row.minStaff, result.days));
+        await api.replaceDayStaffing(created.id, row.minStaff);
+      }
+      if (mounted) setState(() => _rows!.add(row));
     } on ApiException catch (e) {
       if (mounted) _toast(e.message);
     } finally {
@@ -148,11 +192,17 @@ class _StoreShiftSetupPageState extends State<StoreShiftSetupPage> {
   Future<void> _next() async {
     final rows = _rows!;
     if (rows.isEmpty) return _toast("교대를 하나 이상 만들어 주세요.");
+    // 요일 칸을 다 0으로 바꾸면 그 교대는 어느 날에도 없다 → 저장 전에 막는다
+    for (final r in rows) {
+      if (r.days.isEmpty) return _toast("'${r.name}' 교대에 요일이 하나도 없어요. 요일을 고르거나 교대를 삭제해 주세요.");
+    }
     setState(() => _saving = true);
     try {
       final api = StoreApi();
       for (final r in rows) {
-        if (r.edited) await api.updateShift(r.info, name: r.name, startTime: _fmt(r.start), endTime: _fmt(r.end));
+        if (r.edited) {
+          await api.updateShift(r.info, name: r.name, startTime: _fmt(r.start), endTime: _fmt(r.end), keepDayOfWeek: !r.clearFixedDay);
+        }
         await api.replaceDayStaffing(r.info.id, r.minStaff);
       }
       await api.updateSettings(allowSplitShift: _split);
@@ -263,7 +313,17 @@ class _StoreShiftSetupPageState extends State<StoreShiftSetupPage> {
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 child: Row(children: [
                   SizedBox(width: 72, child: Text(r.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: ThymeColor.text))),
-                  Expanded(child: Text("${_fmt(r.start)}–${_fmt(r.end)}", style: ThymeTheme.mono(context, size: 17, color: ThymeColor.text))),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text("${_fmt(r.start)}–${_fmt(r.end)}", style: ThymeTheme.mono(context, size: 17, color: ThymeColor.text)),
+                      if (daysLabel(r.days) case final label?)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(label,
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: r.days.isEmpty ? ThymeColor.dangerText : ThymeColor.infoText)),
+                        ),
+                    ]),
+                  ),
                   Text(_duration(r.minutes), style: const TextStyle(fontSize: 14, color: ThymeColor.textSub)),
                   const SizedBox(width: 6),
                   const Icon(Icons.edit_outlined, size: 18, color: ThymeColor.icon),
@@ -393,7 +453,8 @@ class _StoreShiftSetupPageState extends State<StoreShiftSetupPage> {
               child: Text("교대를 추가하면 여기서 인원을 정해요.", style: TextStyle(fontSize: 14, color: ThymeColor.textSub)),
             ),
           const SizedBox(height: 12),
-          Text("목표 인원은 최소 +1로 시작해요 · 하루 평균 $avg명", style: const TextStyle(fontSize: 13, color: ThymeColor.textSub)),
+          Text("– 는 그 요일엔 교대가 없어요 · 목표 인원은 최소 +1로 시작해요 · 하루 평균 $avg명",
+              style: const TextStyle(fontSize: 13, color: ThymeColor.textSub, height: 1.4)),
         ],
       ),
     );
@@ -422,7 +483,10 @@ class _StoreShiftSetupPageState extends State<StoreShiftSetupPage> {
             decoration: n == 0
                 ? BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: ThymeColor.border))
                 : null,
-            child: Text("$n", style: ThymeTheme.mono(context, size: 16, color: fg)),
+            child: Semantics(
+              label: "${r.name} ${weekdayLabels[d]}요일 ${n == 0 ? '교대 없음' : '최소 $n명'}",
+              child: ExcludeSemantics(child: Text(n == 0 ? "–" : "$n", style: ThymeTheme.mono(context, size: 16, color: fg))),
+            ),
           ),
         ),
       ),
@@ -486,21 +550,23 @@ class _HalfHourStepper extends StatelessWidget {
 }
 
 class _ShiftEdit {
-  const _ShiftEdit({this.name = "", this.start = 0, this.end = 0, this.delete = false});
+  const _ShiftEdit({this.name = "", this.start = 0, this.end = 0, this.days = const {}, this.delete = false});
 
   final String name;
   final int start;
   final int end;
+  final Set<int> days; // 이 교대가 있는 요일 (0 = 월)
   final bool delete;
 }
 
 /// 교대 이름 + 시작·끝 (30분 단위 휠)
 class _ShiftSheet extends StatefulWidget {
-  const _ShiftSheet({required this.name, required this.start, required this.end, required this.canDelete});
+  const _ShiftSheet({required this.name, required this.start, required this.end, required this.days, required this.canDelete});
 
   final String name;
   final int start;
   final int end;
+  final Set<int> days;
   final bool canDelete;
 
   @override
@@ -511,7 +577,68 @@ class _ShiftSheetState extends State<_ShiftSheet> {
   late final _name = TextEditingController(text: widget.name);
   late int _start = widget.start - widget.start % 30;
   late int _end = widget.end - widget.end % 30;
+  late final Set<int> _days = {...widget.days};
   bool _confirmDelete = false;
+
+  static const _presets = [("매일", {0, 1, 2, 3, 4, 5, 6}), ("평일", {0, 1, 2, 3, 4}), ("주말", {5, 6})];
+
+  /// 요일 고르기: 월~일 동그라미 + 매일·평일·주말
+  Widget _dayPicker() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Expanded(child: Text("교대가 있는 요일", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ThymeColor.textSub))),
+          for (final (label, set) in _presets)
+            TextButton(
+              style: TextButton.styleFrom(minimumSize: const Size(48, 36), padding: const EdgeInsets.symmetric(horizontal: 10)),
+              onPressed: () => setState(() => _days
+                ..clear()
+                ..addAll(set)),
+              child: Text(label,
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: _days.length == set.length && _days.containsAll(set) ? ThymeColor.text : ThymeColor.textSub)),
+            ),
+        ]),
+        const SizedBox(height: 6),
+        Row(children: [
+          for (var d = 0; d < 7; d++)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: Semantics(
+                  button: true,
+                  selected: _days.contains(d),
+                  label: "${weekdayLabels[d]}요일",
+                  child: ExcludeSemantics(
+                    child: Material(
+                      color: _days.contains(d) ? ThymeColor.primary : ThymeColor.surface,
+                      shape: StadiumBorder(side: BorderSide(color: _days.contains(d) ? ThymeColor.primary : ThymeColor.border)),
+                      child: InkWell(
+                        customBorder: const StadiumBorder(),
+                        onTap: () => setState(() => _days.contains(d) ? _days.remove(d) : _days.add(d)),
+                        child: SizedBox(
+                          height: 44,
+                          child: Center(
+                            child: Text(weekdayLabels[d],
+                                style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: _days.contains(d) ? ThymeColor.onPrimary : ThymeColor.forWeekday(weekdayLabels[d]))),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ]),
+        if (_days.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Text("요일을 하나 이상 골라 주세요", style: TextStyle(fontSize: 13, color: ThymeColor.dangerText)),
+          ),
+      ]);
 
   @override
   void dispose() {
@@ -537,7 +664,7 @@ class _ShiftSheetState extends State<_ShiftSheet> {
   @override
   Widget build(BuildContext context) {
     final name = _name.text.trim();
-    final valid = name.isNotEmpty && _start != _end;
+    final valid = name.isNotEmpty && _start != _end && _days.isNotEmpty;
     final minutes = _end - _start <= 0 ? _end - _start + 1440 : _end - _start;
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 20, 20, 16 + MediaQuery.of(context).viewInsets.bottom),
@@ -564,10 +691,15 @@ class _ShiftSheetState extends State<_ShiftSheet> {
                   style: TextStyle(fontSize: 13, color: _start == _end ? ThymeColor.dangerText : ThymeColor.textSub)),
             ),
             const SizedBox(height: 16),
+            _dayPicker(),
+            const SizedBox(height: 6),
+            const Text("요일마다 시간이 다르면 교대를 나눠 만들어요 (예: 평일 오전 09–15, 주말 오전 10–16)",
+                style: TextStyle(fontSize: 12, color: ThymeColor.textSub, height: 1.4)),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: valid ? () => Navigator.pop(context, _ShiftEdit(name: name, start: _start, end: _end)) : null,
+                onPressed: valid ? () => Navigator.pop(context, _ShiftEdit(name: name, start: _start, end: _end, days: {..._days})) : null,
                 child: Text(widget.name.isEmpty ? "추가" : "적용"),
               ),
             ),

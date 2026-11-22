@@ -30,6 +30,9 @@ class _DateShiftPageState extends State<DateShiftPage> {
       if (c.locked) (c.date, c.shiftId): c.lockLabel ?? "고정",
   };
 
+  /// 서버가 준 칸 (날짜, 교대 id). 사장님이 그 요일 인원을 0명으로 둔 교대는 칸이 없다
+  late final Set<(DateTime, int)> _open = {for (final c in _view.cells) (c.date, c.shiftId)};
+
   /// 그달 날짜를 7일씩 끊은 주차 (1~7, 8~14, …)
   late final List<List<DateTime>> _weeks = () {
     final days = DateTime(_draft.month.year, _draft.month.month + 1, 0).day;
@@ -37,8 +40,9 @@ class _DateShiftPageState extends State<DateShiftPage> {
     return [for (var i = 0; i < all.length; i += 7) all.sublist(i, (i + 7).clamp(0, all.length))];
   }();
 
-  // 0: 불가(빈칸), 1: 가능, 2: 선호, 3: 고정일정(잠김)
+  // 0: 불가(빈칸), 1: 가능, 2: 선호, 3: 고정일정(잠김), 4: 그날 없는 교대
   int _stateOf(DateTime date, int shiftId) {
+    if (!_open.contains((date, shiftId))) return 4;
     if (_locks.containsKey((date, shiftId))) return 3;
     return switch (_draft.slotAt(date, shiftId)) {
       PreferenceLevel.available => 1,
@@ -49,7 +53,7 @@ class _DateShiftPageState extends State<DateShiftPage> {
 
   void _toggleShiftState(DateTime date, int shiftId) {
     final state = _stateOf(date, shiftId);
-    if (state == 3) return; // 잠긴 칸은 터치 무시
+    if (state >= 3) return; // 잠긴 칸·없는 칸은 터치 무시
     setState(() {
       // 0 -> 1 -> 2 -> 0 순환
       _draft.setSlot(date, shiftId, switch (state) {
@@ -146,6 +150,10 @@ class _DateShiftPageState extends State<DateShiftPage> {
                       _buildLegendItem(3, "고정 일정"),
                     ],
                   ),
+                  if (_open.length < _view.shifts.length * _weeks.fold<int>(0, (n, w) => n + w.length)) ...[
+                    const SizedBox(height: 8),
+                    const Center(child: Text("– 은 그 요일엔 없는 교대예요", style: TextStyle(fontSize: 12, color: ThymeColor.textSub))),
+                  ],
                   const SizedBox(height: 40),
 
                   // [주말 근무 한도 설정 박스]
@@ -248,10 +256,15 @@ class _DateShiftPageState extends State<DateShiftPage> {
       borderColor = Colors.transparent;
       text = _locks[(date, shiftId)] ?? "고정";
       textColor = ThymeColor.textSub;
+    } else if (state == 4) { // 그날 없는 교대
+      bgColor = Colors.transparent;
+      borderColor = Colors.transparent;
+      text = "–";
+      textColor = ThymeColor.disabled;
     }
 
     return GestureDetector(
-      onTap: () => _toggleShiftState(date, shiftId),
+      onTap: state == 4 ? null : () => _toggleShiftState(date, shiftId),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
         height: 44,
