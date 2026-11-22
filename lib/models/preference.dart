@@ -164,9 +164,16 @@ class PreferenceDraft {
   /// 고정 일정을 바꾼 뒤(W11) 그달 칸을 다시 받으면, 새로 잠긴 칸에 골라 둔 값은 지운다
   void replaceView(PreferenceMonth m) {
     view = m;
-    for (final c in m.cells.where((c) => c.locked)) {
-      slots.remove((_dateOnly(c.date), c.shiftId));
-    }
+    trimToView();
+  }
+
+  /// 그달에 없는 칸(사장님이 그 요일 인원을 0명으로 둔 교대)과 잠긴 칸에 골라 둔 값은 지운다.
+  /// 서버는 없는 칸이 섞이면 제출 전체를 "근무 칸이 아닙니다"(400)로 거절한다
+  void trimToView() {
+    final m = view;
+    if (m == null) return;
+    final open = {for (final c in m.cells) if (!c.locked) (_dateOnly(c.date), c.shiftId)};
+    slots.removeWhere((key, _) => !open.contains(key));
   }
 
   /// 지난달 답이나 이미 낸 값으로 초안을 채운다 (W00 "지난달 답 불러오기")

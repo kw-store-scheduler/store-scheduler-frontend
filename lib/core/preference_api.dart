@@ -32,6 +32,8 @@ class PreferenceApi {
         if (!(e.statusCode == 400 && e.message.endsWith('제출한 희망이 없습니다.'))) rethrow;
       }
     }
+    // 지난달엔 있던 교대가 이번 달 그 요일엔 없을 수 있다
+    draft.trimToView();
     return draft;
   }
 
